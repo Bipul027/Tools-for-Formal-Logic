@@ -35,7 +35,7 @@ bool Formula::isBinaryOperator(char x)
 
 /**
  * Syntax for the Formula (Strict) in Backus-Naur Form
- * F ::= (p) or (~p) or (F | F) or (F & F) or (F ^ F) or (F > F) or ~(F)
+ * F ::= p or ~(p) or (F | F) or (F & F) or (F ^ F) or (F > F) or ~(F)
  */
 Node *Formula::buildParseTree(std::string &formulaString)
 {
@@ -117,12 +117,12 @@ void Formula::printTree()
     std::cout << '\n';
 }
 
-int main()
-{
-    std::string s;
-    std::getline(std::cin, s);
+// int main()
+// {
+//     std::string s;
+//     std::getline(std::cin, s);
 
-    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
-    Formula f = Formula(s);
-    f.printTree();
-}
+//     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+//     Formula f = Formula(s);
+//     f.printTree();
+// }
