@@ -1,116 +1,124 @@
-#include <bits/stdc++.h>
+#include "validator.h"
 
-struct Node {
-    std::string s;
-    Node* left;
-    Node* right;
-
-
-    Node(): left(nullptr), right(nullptr) {}
-    Node(std::string str): s(str), left(nullptr), right(nullptr) {}
-    Node(std::string str, Node* l, Node* r) : s(str), left(l), right(r) {}
-
-    ~Node() {
-        delete left;
-        delete right;
-        s = "";
+/**
+ * struct Node{
+ *      Node *left, *right;
+ *      string nodeString;
+ * }
+ */
+bool Node::isNodeValid()
+{
+    if (nodeString == "~")
+    {
+        if (right)
+            return false;
     }
-
-    bool isNodeValid() {
-        if (s == "~") {
-            if (!right) return false;
-        }
-        if (s != "~" && s != "&" && s != "|" && s != "^" && s != ">") {
-            if (!right || !left) return false;
-        }
+    if (nodeString != "~" && nodeString != "&" && nodeString != "|" && nodeString != "^" && nodeString != ">")
+    {
+        if (right || left)
+            return false;
+    }
+    return true;
+}
+bool Formula::isUnaryOperator(char x)
+{
+    if (x == '~')
         return true;
-    }
-};
+    return false;
+}
+bool Formula::isBinaryOperator(char x)
+{
+    if (x == '&' || x == '^' || x == '|' || x == '>')
+        return true;
+    return false;
+}
 
-class Formula {
-private:
-    Node* root;
+/**
+ * Syntax for the Formula (Strict) in Backus-Naur Form
+ * F ::= (p) or (~p) or (F | F) or (F & F) or (F ^ F) or (F > F) or ~(F)
+ */
+Node *Formula::buildParseTree(std::string &formulaString)
+{
+    int n = formulaString.size();
 
-    bool isOp(char x) {
-        if (x == '~' || x == '&' || x == '^' || x == '|' || x == '>') return true;
-        return false;
+    /**
+     * If the string starts with ~ then F ::= ~(G), hence we recursively build the parsetree of G and attach it as a leftChild for '~'
+     */
+    if (formulaString[0] == '~')
+    {
+        std::string str = formulaString.substr(2, n - 3);
+        Node *l = buildParseTree(str);
+
+        return new Node("~", l, nullptr);
     }
-    
-    void printParseTree(Node* root) {
-        if (!root) {
-            std::cout << "";
-            return;
+    /**
+     * If the string starts with ~ the F ::= (p) or F ::= (G op H) or (~p)
+     */
+    if (formulaString[0] == '(')
+    {
+        bool noOperatorInString = true;
+        for (char x : formulaString)
+        {
+            if (isBinaryOperator(x))
+                noOperatorInString = false;
         }
 
-        printParseTree(root->left);
-        std::cout << " : " << root->s << " : ";
-
-        printParseTree(root->right);
-    }
-    
-public:
-    Formula(): root(nullptr) {}
-    Formula(Node* root): root(root) {}
-
-    Formula(std::string s) {
-        root = buildParseTree(s);
-    }
-
-    Node* buildParseTree(std::string &s) {
-        int n = s.size();
-
-        if (s[0] == '~') {
-            std::string str = s.substr(2, n - 3);
-            Node* l = buildParseTree(str);
-
-            return new Node("~", l, nullptr);
+        if (noOperatorInString)
+        {
+            return new Node(formulaString);
         }
 
+        int count = 0, indexOfOperator = -1;
+        for (int i = 1; i < n; i++)
+        {
+            if (formulaString[i] == '(')
+                count++;
+            else if (formulaString[i] == ')')
+                count--;
 
-        if (s[0] == '(') {
-            bool noOp = true;
-            for (char x : s) {
-                if (isOp(x)) noOp = false;
+            if (count == 0 && isBinaryOperator(formulaString[i]))
+            {
+                indexOfOperator = i;
+                break;
             }
+        }
+        if (indexOfOperator != -1)
+        {
+            std::string leftStr = formulaString.substr(1, indexOfOperator - 1);
+            std::string rightStr = formulaString.substr(indexOfOperator + 1, n - indexOfOperator - 2);
+            Node *l = buildParseTree(leftStr);
+            Node *r = buildParseTree(rightStr);
 
-            if (noOp) {
-                return new Node(s);
-            }
-
-            int ct = 1, idx = -1;
-            for (int i = 1; i < n; i++) {
-                if (s[i] == '(') ct++;
-                else if (s[i] == ')') ct--;
-
-                if (ct == 0) {
-                    idx = i + 1;
-                    break;
-                }
-            }
-
-            std::string leftStr = s.substr(1, idx - 2);
-            std::string rightStr = s.substr(idx + 2, n - idx - 3);
-            Node* l = buildParseTree(leftStr);
-            Node* r = buildParseTree(rightStr);
-
-            std::string op(1, s[idx]);
+            std::string op(1, formulaString[indexOfOperator]);
             return new Node(op, l, r);
         }
-        
-        return new Node(s);
     }
 
-    void printTree() {
-        printParseTree(root);
-        std::cout << '\n';
+    return new Node(formulaString);
+}
+
+void Formula::printParseTree(Node *root)
+{
+    if (!root)
+    {
+        std::cout << "";
+        return;
     }
 
-    int evaluate() {
+    printParseTree(root->left);
+    std::cout << " : " << root->nodeString << " : ";
 
-    }
-};
+    printParseTree(root->right);
+}
 
-int main() {
+void Formula::printTree()
+{
+    printParseTree(root);
+    std::cout << '\n';
+}
+
+int main()
+{
     std::string s;
     std::getline(std::cin, s);
 
