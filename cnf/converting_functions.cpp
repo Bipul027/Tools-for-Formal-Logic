@@ -19,6 +19,7 @@ Node *IMPL_FREE(Node *root)
     }
 
     root->left = new Node("~", IMPL_FREE(root->left), nullptr);
+    root->right = IMPL_FREE(root->right);
     root->nodeString = "|";
 
     return root;
