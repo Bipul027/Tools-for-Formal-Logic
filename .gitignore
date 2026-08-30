@@ -68,3 +68,6 @@ Testing/
 .cache/
 
 program
+
+# testcases
+testcases.txt

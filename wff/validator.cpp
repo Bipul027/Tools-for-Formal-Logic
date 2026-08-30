@@ -46,7 +46,7 @@ Node *Formula::buildParseTree(std::string &formulaString)
      */
     if (formulaString[0] == '~')
     {
-        std::string str = formulaString.substr(2, n - 3);
+        std::string str = formulaString.substr(1, n - 1);
         Node *l = buildParseTree(str);
 
         return new Node("~", l, nullptr);

@@ -1,4 +1,5 @@
 #include "evaluator/evaluator.h"
+#include "cnf/converting_functions.h"
 
 int main()
 {
@@ -14,4 +15,8 @@ int main()
     a.printModel();
     std::cout << "=========Formula evaluation===========" << "\n";
     std::cout << "F: " << f.evaluateFormula(a, treeNode) << std::endl;
+    std::cout << "String: " << treeToStr(treeNode) << std::endl;
+    Node* UNI_NODE = UNI_ONLY(treeNode);
+    std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
+    std::cout << "NNF String: " << treeToStr(NNF(UNI_NODE)) << std::endl;
 }

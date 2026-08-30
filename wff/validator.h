@@ -14,12 +14,12 @@ struct Node
 
     ~Node()
     {
-        delete left;
-        delete right;
         nodeString = "";
     }
     bool isNodeValid();
 };
+
+std::string treeToStr(Node* root);
 
 class Formula
 {
