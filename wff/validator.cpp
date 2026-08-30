@@ -1,5 +1,5 @@
 #include "validator.h"
-
+#include "../evaluator/evaluator.h"
 /**
  * struct Node{
  *      Node *left, *right;
@@ -117,12 +117,25 @@ void Formula::printTree()
     std::cout << '\n';
 }
 
-// int main()
-// {
-//     std::string s;
-//     std::getline(std::cin, s);
+bool Formula::evaluateFormula(assignment &assign, Node *root)
+{
+    std::map<std::string, bool> model = assign.model;
+    if (!isUnaryOperator((root->nodeString)[0]) && !isBinaryOperator((root->nodeString)[0]))
+        return model[root->nodeString];
 
-//     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
-//     Formula f = Formula(s);
-//     f.printTree();
-// }
+    if (isUnaryOperator((root->nodeString)[0]) && root->nodeString.length() == 1)
+        return !evaluateFormula(assign, root->left);
+
+    if (root->nodeString == "|")
+        return (evaluateFormula(assign, root->left) | evaluateFormula(assign, root->right));
+
+    if (root->nodeString == "&")
+        return (evaluateFormula(assign, root->left) & evaluateFormula(assign, root->right));
+
+    if (root->nodeString == "^")
+        return (evaluateFormula(assign, root->left) ^ evaluateFormula(assign, root->right));
+
+    if (root->nodeString == ">")
+        return (!evaluateFormula(assign, root->left) | evaluateFormula(assign, root->right));
+    return true;
+};

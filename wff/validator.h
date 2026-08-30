@@ -1,6 +1,8 @@
 #pragma once
 #include <bits/stdc++.h>
 
+struct assignment;
+
 struct Node
 {
     std::string nodeString;
@@ -22,21 +24,23 @@ struct Node
 class Formula
 {
 private:
-    Node *root;
     bool isUnaryOperator(char x);
     bool isBinaryOperator(char x);
     void printParseTree(Node *root);
 
 public:
+    Node *root;
+
     Formula() : root(nullptr) {}
     Formula(Node *root) : root(root) {}
-
-    Node *buildParseTree(std::string &formulaString);
-
     Formula(std::string s)
     {
         root = buildParseTree(s);
     }
 
+    Node *buildParseTree(std::string &formulaString);
+
     void printTree();
+
+    bool evaluateFormula(assignment &assign, Node *root);
 };

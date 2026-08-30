@@ -2,7 +2,6 @@
 
 int main()
 {
-
     std::string s;
     std::getline(std::cin, s);
     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
@@ -11,5 +10,8 @@ int main()
     f.printTree();
     assignment a;
     a.buildModel(treeNode);
+    std::cout << "===========Current Assignment=============" << "\n";
     a.printModel();
+    std::cout << "=========Formula evaluation===========" << "\n";
+    std::cout << "F: " << f.evaluateFormula(a, treeNode) << std::endl;
 }
