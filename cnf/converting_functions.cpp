@@ -25,8 +25,10 @@ Node *IMPL_FREE(Node *root)
     return root;
 }
 
-Node* copyTree(Node *root) {
-    if (!root) return root;
+Node *copyTree(Node *root)
+{
+    if (!root)
+        return root;
     return new Node(root->nodeString, copyTree(root->left), copyTree(root->right));
 }
 
@@ -53,8 +55,8 @@ Node *XOR_FREE(Node *root)
     Node *F = XOR_FREE(root->left);
     Node *G = XOR_FREE(root->right);
 
-    Node* copyF = copyTree(F);
-    Node* copyG = copyTree(G);
+    Node *copyF = copyTree(F);
+    Node *copyG = copyTree(G);
 
     Node *notF = new Node("~", copyF, nullptr);
     Node *notG = new Node("~", copyG, nullptr);
@@ -101,7 +103,7 @@ Node *NNF(Node *root)
 
             root->left->nodeString = "~";
             root->nodeString = "|";
-            
+
             root->left = NNF(root->left);
             root->right = NNF(root->right);
 
@@ -131,7 +133,8 @@ Node *NNF(Node *root)
     return root;
 }
 
-CNF merge(CNF F, CNF G) {
+CNF merge(CNF F, CNF G)
+{
     CNF temp;
     temp.merge(F);
     temp.merge(G);
@@ -139,22 +142,27 @@ CNF merge(CNF F, CNF G) {
     return temp;
 }
 
-// Assumes that F and G are in CNF 
-// DISTR (F , G) computes a CNF for F | G 
-CNF DISTR(CNF F, CNF G) {
-    if (G.empty()) return F;
-    if (F.empty()) return G;
+// Assumes that F and G are in CNF
+// DISTR (F , G) computes a CNF for F | G
+CNF DISTR(CNF F, CNF G)
+{
+    if (G.empty())
+        return F;
+    if (F.empty())
+        return G;
 
     int n = F.size(), m = G.size();
 
-    if (n >= 2) {
+    if (n >= 2)
+    {
         auto temp = F.pop();
         CNF F0 = CNF(temp);
 
         return merge(DISTR(F0, G), DISTR(F, G));
     }
 
-    if (m >= 2) {
+    if (m >= 2)
+    {
         auto temp = G.pop();
         CNF G0 = CNF(temp);
 
@@ -163,7 +171,8 @@ CNF DISTR(CNF F, CNF G) {
 
     auto tmp1 = F.pop(), tmp2 = G.pop();
 
-    for (auto literal : tmp2) {
+    for (auto literal : tmp2)
+    {
         tmp1.push_back(literal);
     }
 
@@ -171,24 +180,30 @@ CNF DISTR(CNF F, CNF G) {
 }
 
 // Assumes formula already in NNF
-CNF convertToCNF(Node* root) {
-    if (!root) {
+CNF convertToCNF(Node *root)
+{
+    if (!root)
+    {
         return CNF();
     }
 
-    if (!(root->left) && !(root->right)) {
+    if (!(root->left) && !(root->right))
+    {
         return CNF({root->nodeString, true});
     }
 
-    if (root->nodeString == "~") {
+    if (root->nodeString == "~")
+    {
         return CNF({root->left->nodeString, false});
     }
 
-    if (root->nodeString == "&") {
+    if (root->nodeString == "&")
+    {
         return merge(convertToCNF(root->left), convertToCNF(root->right));
     }
 
-    if (root->nodeString == "|") {
+    if (root->nodeString == "|")
+    {
         return DISTR(convertToCNF(root->left), convertToCNF(root->right));
     }
 
