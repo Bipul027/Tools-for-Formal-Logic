@@ -74,3 +74,14 @@ std::vector<std::pair<std::string, bool>> CNF::pop()
 
     return temp;
 }
+
+std::set<std::set<std::pair<std::string, bool>>> CNF::CNFtoTree()
+{
+    std::set<std::set<std::pair<std::string, bool>>> CNFSet;
+    for (const auto &clause : clauses)
+    {
+        std::set<std::pair<std::string, bool>> clauseSet(clause.begin(), clause.end());
+        CNFSet.insert(clauseSet);
+    }
+    return CNFSet;
+}

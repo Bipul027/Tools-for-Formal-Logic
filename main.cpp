@@ -1,5 +1,6 @@
 #include "evaluator/evaluator.h"
 #include "cnf/converting_functions.h"
+#include "validity/validity.h"
 
 int main()
 {
@@ -16,10 +17,12 @@ int main()
     std::cout << "=========Formula evaluation===========" << "\n";
     std::cout << "F: " << f.evaluateFormula(a, treeNode) << std::endl;
     std::cout << "String: " << treeToStr(treeNode) << std::endl;
-    Node* UNI_NODE = UNI_ONLY(treeNode);
+    Node *UNI_NODE = UNI_ONLY(treeNode);
     std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
-    Node* NNF_NODE = NNF(UNI_NODE);
+    Node *NNF_NODE = NNF(UNI_NODE);
     std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
     std::cout << "CNF String: ";
-    convertToCNF(NNF_NODE).print();
+    CNF Formula_in_CNF = convertToCNF(NNF_NODE);
+    Formula_in_CNF.print();
+    std::cout << "Validity: " << isCNFValid(Formula_in_CNF) << "\n";
 }
