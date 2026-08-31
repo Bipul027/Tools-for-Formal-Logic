@@ -18,5 +18,8 @@ int main()
     std::cout << "String: " << treeToStr(treeNode) << std::endl;
     Node* UNI_NODE = UNI_ONLY(treeNode);
     std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
-    std::cout << "NNF String: " << treeToStr(NNF(UNI_NODE)) << std::endl;
+    Node* NNF_NODE = NNF(UNI_NODE);
+    std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
+    std::cout << "CNF String: ";
+    convertToCNF(NNF_NODE).print();
 }

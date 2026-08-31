@@ -130,3 +130,67 @@ Node *NNF(Node *root)
 
     return root;
 }
+
+CNF merge(CNF F, CNF G) {
+    CNF temp;
+    temp.merge(F);
+    temp.merge(G);
+
+    return temp;
+}
+
+// Assumes that F and G are in CNF 
+// DISTR (F , G) computes a CNF for F | G 
+CNF DISTR(CNF F, CNF G) {
+    if (G.empty()) return F;
+    if (F.empty()) return G;
+
+    int n = F.size(), m = G.size();
+
+    if (n >= 2) {
+        auto temp = F.pop();
+        CNF F0 = CNF(temp);
+
+        return merge(DISTR(F0, G), DISTR(F, G));
+    }
+
+    if (m >= 2) {
+        auto temp = G.pop();
+        CNF G0 = CNF(temp);
+
+        return merge(DISTR(F, G0), DISTR(F, G));
+    }
+
+    auto tmp1 = F.pop(), tmp2 = G.pop();
+
+    for (auto literal : tmp2) {
+        tmp1.push_back(literal);
+    }
+
+    return CNF(tmp1);
+}
+
+// Assumes formula already in NNF
+CNF convertToCNF(Node* root) {
+    if (!root) {
+        return CNF();
+    }
+
+    if (!(root->left) && !(root->right)) {
+        return CNF({root->nodeString, true});
+    }
+
+    if (root->nodeString == "~") {
+        return CNF({root->left->nodeString, false});
+    }
+
+    if (root->nodeString == "&") {
+        return merge(convertToCNF(root->left), convertToCNF(root->right));
+    }
+
+    if (root->nodeString == "|") {
+        return DISTR(convertToCNF(root->left), convertToCNF(root->right));
+    }
+
+    return CNF();
+}
