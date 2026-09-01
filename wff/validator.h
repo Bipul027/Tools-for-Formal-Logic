@@ -1,5 +1,10 @@
 #pragma once
-#include <bits/stdc++.h>
+#include <iostream>
+#include <set>
+#include<set>
+#include<algorithm>
+#include<string>
+#include<map>
 
 struct assignment;
 

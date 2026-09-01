@@ -173,7 +173,7 @@ CNF DISTR(CNF F, CNF G)
 
     for (auto literal : tmp2)
     {
-        tmp1.push_back(literal);
+        tmp1.insert(literal);
     }
 
     return CNF(tmp1);

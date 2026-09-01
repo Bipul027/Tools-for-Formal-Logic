@@ -3,24 +3,24 @@
 // CNF = {{} & {}... & {}}
 CNF::CNF()
 {
-    clauses = std::vector<std::vector<std::pair<std::string, bool>>>();
+    clauses = std::set<std::set<std::pair<std::string, bool>>>();
 }
 
-CNF::CNF(std::vector<std::vector<std::pair<std::string, bool>>> &clauses)
+CNF::CNF(std::set<std::set<std::pair<std::string, bool>>> &clauses)
 {
     CNF();
     this->clauses = clauses;
 }
 
-CNF::CNF(std::vector<std::pair<std::string, bool>> &clause)
+CNF::CNF(std::set<std::pair<std::string, bool>> &clause)
 {
     CNF();
-    clauses.push_back(clause);
+    clauses.insert(clause);
 }
 
 CNF::CNF(std::string &prop, bool state)
 {
-    clauses.push_back({{prop, state}});
+    clauses.insert({{prop, state}});
 }
 
 bool CNF::empty()
@@ -41,15 +41,18 @@ void CNF::print()
         std::cout << "(";
 
         int n = clause.size();
-        for (int i = 0; i < n - 1; i++)
+        auto it = clause.begin();
+        while(n > 1)
         {
-            auto [prop, state] = clause[i];
+            auto [prop, state] = *it;
             std::cout << (state ? "" : "~");
             std::cout << prop << "|";
+            n--;
+            it++;
         }
 
-        std::cout << (clause.back().second ? "" : "~");
-        std::cout << clause.back().first;
+        std::cout << (it->second ? "" : "~");
+        std::cout << it->first;
         std::cout << ")";
 
         ct++;
@@ -63,14 +66,15 @@ void CNF::merge(CNF &other)
 {
     for (auto clause : other.clauses)
     {
-        clauses.push_back(clause);
+        clauses.insert(clause);
     }
 }
 
-std::vector<std::pair<std::string, bool>> CNF::pop()
+std::set<std::pair<std::string, bool>> CNF::pop()
 {
-    auto temp = clauses.back();
-    clauses.pop_back();
+    auto it = clauses.begin();
+    auto temp = *it;
+    clauses.erase(it);
 
     return temp;
 }
