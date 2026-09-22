@@ -2,15 +2,15 @@
 
 bool isCNFValid(CNF Formula)
 {
-    std::set<std::set<std::pair<std::string, bool>>> CNFTree = Formula.CNFtoTree();
+    std::vector<std::set<int>> CNFTree = Formula.CNFtoTree();
 
     bool isValid = true;
-    for (auto clause : CNFTree)
+    for (auto &clause : CNFTree)
     {
         bool isclauseValid = false;
-        for (auto literal : clause)
+        for (int literal : clause)
         {
-            if (clause.find({literal.first, !literal.second}) != clause.end())
+            if (clause.find(-literal) != clause.end())
             {
                 isclauseValid = true;
                 break;
@@ -28,6 +28,6 @@ bool isFormulaValid(std::string FormulaString)
 {
     Formula formula;
     Node *root = formula.buildParseTree(FormulaString);
-    CNF CNFForm = convertToCNF(NNF(UNI_ONLY(root)));
+    CNF CNFForm = convertToCNF(NNF(UNI_ONLY(root)), formula.propIdMap, formula.propLookupMap);
     return isCNFValid(CNFForm);
 }

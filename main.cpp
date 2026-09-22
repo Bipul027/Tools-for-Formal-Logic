@@ -22,7 +22,7 @@ int main()
     Node *NNF_NODE = NNF(UNI_NODE);
     std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
     std::cout << "CNF String: ";
-    CNF Formula_in_CNF = convertToCNF(NNF_NODE);
+    CNF Formula_in_CNF = convertToCNF(NNF_NODE, f.propIdMap, f.propLookupMap);
     Formula_in_CNF.print();
     std::cout << "Validity: " << isCNFValid(Formula_in_CNF) << "\n";
 }
