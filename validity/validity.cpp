@@ -2,7 +2,7 @@
 
 bool isCNFValid(CNF Formula)
 {
-    std::vector<std::set<int>> CNFTree = Formula.CNFtoTree();
+    std::set<std::set<int>> CNFTree = Formula.CNFtoTree();
 
     bool isValid = true;
     for (auto &clause : CNFTree)
