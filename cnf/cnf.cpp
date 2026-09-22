@@ -36,7 +36,7 @@ int CNF::size()
     return clauses.size();
 }
 
-void CNF::print(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+void CNF::print(const std::vector<std::string> &propIdMap)
 {
     int ct = 0;
     for (auto &clause : clauses)
@@ -49,13 +49,13 @@ void CNF::print(const std::unordered_map<int, std::string> &id_to_prop, const st
         {
             int id = *it;
             std::cout << (id < 0 ? "" : "~");
-            std::cout << id_to_prop.at(abs(id)) << "|";
+            std::cout << propIdMap.at(abs(id) - 1) << "|";
             n--;
             it++;
         }
 
         std::cout << (*it < 0 ? "" : "~");
-        std::cout << id_to_prop.at(abs(*it));
+        std::cout << propIdMap.at(abs(*it) - 1);
         std::cout << ")";
 
         ct++;
@@ -65,7 +65,7 @@ void CNF::print(const std::unordered_map<int, std::string> &id_to_prop, const st
     std::cout << '\n';
 }
 
-void CNF::merge(CNF &other)
+void CNF::merge(const CNF &other)
 {
     for (auto &clause : other.clauses)
     {
@@ -82,13 +82,7 @@ std::set<int> CNF::pop()
     return temp;
 }
 
-std::set<std::set<int>> CNF::CNFtoTree()
+std::set<std::set<int>> CNF::CNFtoTree() const
 {
-    std::set<std::set<int>> CNFSet;
-    for (const auto &clause : clauses)
-    {
-        std::set<int> clauseSet(clause.begin(), clause.end());
-        CNFSet.insert(clauseSet);
-    }
-    return CNFSet;
+    return clauses;
 }

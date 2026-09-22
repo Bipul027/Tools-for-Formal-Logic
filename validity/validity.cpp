@@ -28,6 +28,6 @@ bool isFormulaValid(std::string FormulaString)
 {
     Formula formula;
     Node *root = formula.buildParseTree(FormulaString);
-    CNF CNFForm = convertToCNF(NNF(UNI_ONLY(root)), formula.propIdMap, formula.propLookupMap);
+    CNF CNFForm = convertToCNF(NNF(UNI_ONLY(root)));
     return isCNFValid(CNFForm);
 }

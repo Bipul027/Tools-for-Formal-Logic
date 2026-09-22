@@ -133,7 +133,7 @@ Node *NNF(Node *root)
     return root;
 }
 
-CNF merge(CNF F, CNF G)
+CNF merge(const CNF &F, const CNF &G)
 {
     CNF temp;
     temp.merge(F);
@@ -179,7 +179,7 @@ CNF DISTR(CNF F, CNF G)
 }
 
 // Assumes formula already in NNF
-CNF convertToCNF(Node *root, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF convertToCNF(Node *root)
 {
     if (!root)
     {
@@ -188,22 +188,22 @@ CNF convertToCNF(Node *root, const std::unordered_map<int, std::string> &id_to_p
 
     if (!(root->left) && !(root->right))
     {
-        return CNF(prop_to_id.at(root->nodeString));
+        return CNF(root->id);
     }
 
     if (root->nodeString == "~")
     {
-        return CNF(-prop_to_id.at(root->left->nodeString));
+        return CNF(-(root->left->id));
     }
 
     if (root->nodeString == "&")
     {
-        return merge(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id));
+        return merge(convertToCNF(root->left), convertToCNF(root->right));
     }
 
     if (root->nodeString == "|")
     {
-        return DISTR(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id));
+        return DISTR(convertToCNF(root->left), convertToCNF(root->right));
     }
 
     return CNF();

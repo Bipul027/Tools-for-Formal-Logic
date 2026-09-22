@@ -21,8 +21,8 @@ public:
     CNF(int id);
     bool empty();
     int size();
-    void print(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
-    void merge(CNF &other);
+    void print(const std::vector<std::string> &propIdMap);
+    void merge(const CNF &other);
     std::set<int> pop();
-    std::set<std::set<int>> CNFtoTree();
+    std::set<std::set<int>> CNFtoTree() const;
 };

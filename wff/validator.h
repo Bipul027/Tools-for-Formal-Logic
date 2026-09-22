@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 struct assignment;
 
@@ -40,8 +41,7 @@ private:
 public:
     Node *root;
     int propNums = 0;
-    std::unordered_map<std::string, int> propLookupMap;
-    std::unordered_map<int, std::string> propIdMap;
+    std::vector<std::string> propIdMap;
 
     Formula() : root(nullptr) {}
     Formula(Node *root) : root(root) {}
