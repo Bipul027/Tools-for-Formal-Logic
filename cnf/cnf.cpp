@@ -39,29 +39,48 @@ int CNF::size() const
 void CNF::print(const std::vector<std::string> &propIdMap)
 {
     int ct = 0;
-    for (auto &clause : clauses)
+
+    for (const auto &clause : clauses)
     {
         std::cout << "(";
 
-        int n = clause.size();
+        int n = static_cast<int>(clause.size());
         auto it = clause.begin();
+
         while (n > 1)
         {
-            int id = *it;
-            std::cout << (id < 0 ? "" : "~");
-            std::cout << propIdMap.at(abs(id) - 1) << "|";
+            int literal = *it;
+
+            bool negated = literal & 1;
+            int idx = literal >> 1;
+
+            if (negated)
+                std::cout << "~";
+
+            std::cout << propIdMap.at(idx - 1) << "|";
+
             n--;
             it++;
         }
 
-        std::cout << (*it < 0 ? "" : "~");
-        std::cout << propIdMap.at(abs(*it) - 1);
+        int literal = *it;
+
+        bool negated = literal & 1;
+        int idx = literal >> 1;
+
+        if (negated)
+            std::cout << "~";
+
+        std::cout << propIdMap.at(idx - 1);
+
         std::cout << ")";
 
-        ct++;
-        if (ct < (int)clauses.size())
+        ++ct;
+
+        if (ct < static_cast<int>(clauses.size()))
             std::cout << "&";
     }
+
     std::cout << '\n';
 }
 

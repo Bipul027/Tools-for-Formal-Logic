@@ -10,7 +10,7 @@ bool isCNFValid(CNF Formula)
         bool isclauseValid = false;
         for (int literal : clause)
         {
-            if (clause.find(-literal) != clause.end())
+            if (clause.find(literal ^ 1) != clause.end())
             {
                 isclauseValid = true;
                 break;

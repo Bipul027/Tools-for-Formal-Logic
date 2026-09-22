@@ -169,9 +169,18 @@ CNF DISTR(const CNF &F, const CNF &G)
         for (const auto &c2 : gClauses)
         {
             std::set<int> clause = c1;
-            clause.insert(c2.begin(), c2.end());
-
-            result.addClause(std::move(clause));
+            bool tautology = false;
+            for (int literal : c2)
+            {
+                if (clause.find(literal ^ 1) != clause.end())
+                {
+                    tautology = true;
+                    break;
+                }
+                clause.insert(c2.begin(), c2.end());
+            }
+            if (!tautology)
+                result.addClause(std::move(clause));
         }
     }
 
@@ -192,7 +201,7 @@ CNF convertToCNF(Node *root)
 
     if (root->nodeString == "~")
     {
-        return CNF(-(root->left->id));
+        return CNF((root->left->id ^ 1));
     }
 
     if (root->nodeString == "&")

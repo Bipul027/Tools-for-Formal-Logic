@@ -97,24 +97,27 @@ Node *Formula::buildParseTree(std::string &formulaString)
 
     // Base case when the string is just a proposition
     // Check if the given propositional variable already exists in prop and decide the id of the variable
-    int id = -1;
+    int idx = -1;
+
     for (int i = 0; i < propIdMap.size(); i++)
     {
         if (propIdMap[i] == formulaString)
         {
-            id = i + 1; // IDs are 1-indexed
+            idx = i + 1;
             break;
         }
     }
 
-    if (id == -1)
+    if (idx == -1)
     {
         propIdMap.push_back(formulaString);
-        id = propIdMap.size();
+        idx = propIdMap.size();
     }
 
     Node *retNode = new Node(formulaString);
-    retNode->id = id;
+
+    retNode->id = 2 * idx;
+
     return retNode;
 }
 

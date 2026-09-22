@@ -15,6 +15,7 @@ struct Node
     // To remove the storage of the string and rely on id completely.
     std::string nodeString;
     // Operations have an id 0 irrespective of their nature and every proposition has a unique id.
+    // p_i : 2*i, ~p_i : 2_i + 1
     int id = 0;
     Node *left, *right;
 
