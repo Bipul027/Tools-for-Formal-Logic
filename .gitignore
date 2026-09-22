@@ -68,6 +68,7 @@ Testing/
 .cache/
 
 program
+benchmark
 
 # testcases
 testcases.txt
