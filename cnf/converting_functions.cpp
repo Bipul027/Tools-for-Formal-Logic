@@ -133,9 +133,9 @@ Node *NNF(Node *root)
     return root;
 }
 
-CNF merge(CNF F, CNF G, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF merge(CNF F, CNF G)
 {
-    CNF temp(id_to_prop, prop_to_id);
+    CNF temp;
     temp.merge(F);
     temp.merge(G);
     return temp;
@@ -143,7 +143,7 @@ CNF merge(CNF F, CNF G, const std::unordered_map<int, std::string> &id_to_prop, 
 
 // Assumes that F and G are in CNF
 // DISTR (F , G) computes a CNF for F | G
-CNF DISTR(CNF F, CNF G, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF DISTR(CNF F, CNF G)
 {
     if (G.empty())
         return F;
@@ -155,17 +155,17 @@ CNF DISTR(CNF F, CNF G, const std::unordered_map<int, std::string> &id_to_prop, 
     if (n >= 2)
     {
         auto temp = F.pop();
-        CNF F0 = CNF(temp, id_to_prop, prop_to_id);
+        CNF F0 = CNF(temp);
 
-        return merge(DISTR(F0, G, id_to_prop, prop_to_id), DISTR(F, G, id_to_prop, prop_to_id), id_to_prop, prop_to_id);
+        return merge(DISTR(F0, G), DISTR(F, G));
     }
 
     if (m >= 2)
     {
         auto temp = G.pop();
-        CNF G0 = CNF(temp, id_to_prop, prop_to_id);
+        CNF G0 = CNF(temp);
 
-        return merge(DISTR(F, G0, id_to_prop, prop_to_id), DISTR(F, G, id_to_prop, prop_to_id), id_to_prop, prop_to_id);
+        return merge(DISTR(F, G0), DISTR(F, G));
     }
 
     auto tmp1 = F.pop(), tmp2 = G.pop();
@@ -175,7 +175,7 @@ CNF DISTR(CNF F, CNF G, const std::unordered_map<int, std::string> &id_to_prop, 
         tmp1.insert(literal);
     }
 
-    return CNF(tmp1, id_to_prop, prop_to_id);
+    return CNF(tmp1);
 }
 
 // Assumes formula already in NNF
@@ -183,28 +183,28 @@ CNF convertToCNF(Node *root, const std::unordered_map<int, std::string> &id_to_p
 {
     if (!root)
     {
-        return CNF(id_to_prop, prop_to_id);
+        return CNF();
     }
 
     if (!(root->left) && !(root->right))
     {
-        return CNF(root->nodeString, true, id_to_prop, prop_to_id);
+        return CNF(prop_to_id.at(root->nodeString));
     }
 
     if (root->nodeString == "~")
     {
-        return CNF(root->left->nodeString, false, id_to_prop, prop_to_id);
+        return CNF(-prop_to_id.at(root->left->nodeString));
     }
 
     if (root->nodeString == "&")
     {
-        return merge(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id), id_to_prop, prop_to_id);
+        return merge(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id));
     }
 
     if (root->nodeString == "|")
     {
-        return DISTR(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id), id_to_prop, prop_to_id);
+        return DISTR(convertToCNF(root->left, id_to_prop, prop_to_id), convertToCNF(root->right, id_to_prop, prop_to_id));
     }
 
-    return CNF(id_to_prop, prop_to_id);
+    return CNF();
 }

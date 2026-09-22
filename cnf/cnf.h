@@ -11,17 +11,17 @@ class CNF
 {
 private:
     std::set<std::set<int>> clauses;
-    std::unordered_map<std::string, int> prop_to_id;
-    std::unordered_map<int, std::string> id_to_prop;
+    // std::unordered_map<std::string, int> prop_to_id;
+    // std::unordered_map<int, std::string> id_to_prop;
 
 public:
-    CNF(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
-    CNF(std::set<int> &clause, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
-    CNF(std::set<std::set<int>> &clauses, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
-    CNF(std::string &prop, bool state, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
+    CNF();
+    CNF(std::set<int> &clause);
+    CNF(std::set<std::set<int>> &clauses);
+    CNF(int id);
     bool empty();
     int size();
-    void print();
+    void print(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id);
     void merge(CNF &other);
     std::set<int> pop();
     std::set<std::set<int>> CNFtoTree();
