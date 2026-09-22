@@ -1,76 +1,98 @@
 #include "cnf.h"
 
 // CNF = {{} & {}... & {}}
+
+// Initialises an empty CNF
 CNF::CNF()
 {
-    clauses = std::set<std::set<std::pair<std::string, bool>>>();
+    this->clauses = std::set<std::set<int>>();
 }
 
-CNF::CNF(std::set<std::set<std::pair<std::string, bool>>> &clauses)
+// Initialises a CNF with a given set of clauses
+CNF::CNF(std::set<std::set<int>> &clauses)
 {
-    CNF();
     this->clauses = clauses;
 }
 
-CNF::CNF(std::set<std::pair<std::string, bool>> &clause)
+// Initialises a CNF with exactly one clause
+CNF::CNF(std::set<int> &clause)
 {
-    CNF();
     clauses.insert(clause);
 }
 
-CNF::CNF(std::string &prop, bool state)
+// Initialises a CNF with exactly one variable i.e. CNF := {{p}}
+CNF::CNF(int id)
 {
-    clauses.insert({{prop, state}});
+    clauses.insert({id});
 }
 
-bool CNF::empty()
+bool CNF::empty() const
 {
     return clauses.empty();
 }
 
-int CNF::size()
+int CNF::size() const
 {
     return clauses.size();
 }
 
-void CNF::print()
+void CNF::print(const std::vector<std::string> &propIdMap)
 {
     int ct = 0;
-    for (auto &clause : clauses)
+
+    for (const auto &clause : clauses)
     {
         std::cout << "(";
 
-        int n = clause.size();
+        int n = static_cast<int>(clause.size());
         auto it = clause.begin();
-        while(n > 1)
+
+        while (n > 1)
         {
-            auto [prop, state] = *it;
-            std::cout << (state ? "" : "~");
-            std::cout << prop << "|";
+            int literal = *it;
+
+            bool negated = literal & 1;
+            int idx = literal >> 1;
+
+            if (negated)
+                std::cout << "~";
+
+            std::cout << propIdMap.at(idx - 1) << "|";
+
             n--;
             it++;
         }
 
-        std::cout << (it->second ? "" : "~");
-        std::cout << it->first;
+        int literal = *it;
+
+        bool negated = literal & 1;
+        int idx = literal >> 1;
+
+        if (negated)
+            std::cout << "~";
+
+        std::cout << propIdMap.at(idx - 1);
+
         std::cout << ")";
 
-        ct++;
-        if (ct < (int)clauses.size())
+        ++ct;
+
+        if (ct < static_cast<int>(clauses.size()))
             std::cout << "&";
     }
+
     std::cout << '\n';
 }
 
-void CNF::merge(CNF &other)
+void CNF::merge(const CNF &other)
 {
-    for (auto clause : other.clauses)
+    for (auto &clause : other.clauses)
     {
         clauses.insert(clause);
     }
 }
 
-std::set<std::pair<std::string, bool>> CNF::pop()
+std::set<int> CNF::pop()
 {
     auto it = clauses.begin();
     auto temp = *it;
@@ -79,13 +101,15 @@ std::set<std::pair<std::string, bool>> CNF::pop()
     return temp;
 }
 
-std::set<std::set<std::pair<std::string, bool>>> CNF::CNFtoTree()
+std::set<std::set<int>> CNF::CNFtoTree() const
 {
-    std::set<std::set<std::pair<std::string, bool>>> CNFSet;
-    for (const auto &clause : clauses)
-    {
-        std::set<std::pair<std::string, bool>> clauseSet(clause.begin(), clause.end());
-        CNFSet.insert(clauseSet);
-    }
-    return CNFSet;
+    return clauses;
+}
+void CNF::addClause(std::set<int> clause)
+{
+    clauses.insert(std::move(clause));
+}
+const std::set<std::set<int>> &CNF::getClauses() const
+{
+    return clauses;
 }

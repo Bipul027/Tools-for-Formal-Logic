@@ -2,15 +2,15 @@
 
 bool isCNFValid(CNF Formula)
 {
-    std::set<std::set<std::pair<std::string, bool>>> CNFTree = Formula.CNFtoTree();
+    std::set<std::set<int>> CNFTree = Formula.CNFtoTree();
 
     bool isValid = true;
-    for (auto clause : CNFTree)
+    for (auto &clause : CNFTree)
     {
         bool isclauseValid = false;
-        for (auto literal : clause)
+        for (int literal : clause)
         {
-            if (clause.find({literal.first, !literal.second}) != clause.end())
+            if (clause.find(literal ^ 1) != clause.end())
             {
                 isclauseValid = true;
                 break;

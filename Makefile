@@ -1,21 +1,19 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -g -std=c++17 -I./wff -I./evaluator
-
-TARGET = program
-
-SRCS = main.cpp wff/validator.cpp evaluator/evaluator.cpp wff/tree_to_str.cpp cnf/converting_functions.cpp cnf/cnf.cpp validity/validity.cpp
-
+CXXFLAGS = -O3 -Wall -std=c++17 -g
+LDFLAGS = -lz3
+SRCS = main.cpp validity/validity.cpp cnf/cnf.cpp cnf/converting_functions.cpp wff/validator.cpp wff/tree_to_str.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-all: $(TARGET)
+all: benchmark run plot
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+benchmark: $(OBJS)
+	$(CXX) $(CXXFLAGS) -o benchmark $(OBJS) $(LDFLAGS)
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+run: benchmark
+	./benchmark
+
+plot: run
+	python3 plot.py
 
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-.PHONY: all clean
+	rm -f benchmark $(OBJS) results.csv benchmark_plot.png

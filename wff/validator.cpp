@@ -52,10 +52,11 @@ Node *Formula::buildParseTree(std::string &formulaString)
         return new Node("~", l, nullptr);
     }
     /**
-     * If the string starts with ~ the F ::= (p) or F ::= (G op H) or (~p)
+     * If the string starts with ( the  F ::= (G op H)
      */
     if (formulaString[0] == '(')
     {
+
         bool noOperatorInString = true;
         for (char x : formulaString)
         {
@@ -94,7 +95,30 @@ Node *Formula::buildParseTree(std::string &formulaString)
         }
     }
 
-    return new Node(formulaString);
+    // Base case when the string is just a proposition
+    // Check if the given propositional variable already exists in prop and decide the id of the variable
+    int idx = -1;
+
+    for (int i = 0; i < static_cast<int>(propIdMap.size()); i++)
+    {
+        if (propIdMap[i] == formulaString)
+        {
+            idx = i + 1;
+            break;
+        }
+    }
+
+    if (idx == -1)
+    {
+        propIdMap.push_back(formulaString);
+        idx = propIdMap.size();
+    }
+
+    Node *retNode = new Node(formulaString);
+
+    retNode->id = 2 * idx;
+
+    return retNode;
 }
 
 void Formula::printParseTree(Node *root)

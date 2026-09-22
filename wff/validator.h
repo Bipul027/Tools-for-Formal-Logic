@@ -1,16 +1,22 @@
 #pragma once
 #include <iostream>
 #include <set>
-#include<set>
-#include<algorithm>
-#include<string>
-#include<map>
+#include <map>
+#include <algorithm>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 struct assignment;
 
 struct Node
 {
+    // To remove the storage of the string and rely on id completely.
     std::string nodeString;
+    // Operations have an id 0 irrespective of their nature and every proposition has a unique id.
+    // p_i : 2*i, ~p_i : 2_i + 1
+    int id = 0;
     Node *left, *right;
     int aux_id = -1;
 
@@ -25,7 +31,7 @@ struct Node
     bool isNodeValid();
 };
 
-std::string treeToStr(Node* root);
+std::string treeToStr(Node *root);
 
 class Formula
 {
@@ -36,6 +42,8 @@ private:
 
 public:
     Node *root;
+    int propNums = 0;
+    std::vector<std::string> propIdMap;
 
     Formula() : root(nullptr) {}
     Formula(Node *root) : root(root) {}

@@ -28,8 +28,16 @@ Node *IMPL_FREE(Node *root)
 Node *copyTree(Node *root)
 {
     if (!root)
-        return root;
-    return new Node(root->nodeString, copyTree(root->left), copyTree(root->right));
+        return nullptr;
+
+    Node *copy = new Node(
+        root->nodeString,
+        copyTree(root->left),
+        copyTree(root->right));
+
+    copy->id = root->id;
+
+    return copy;
 }
 
 Node *XOR_FREE(Node *root)
@@ -133,52 +141,51 @@ Node *NNF(Node *root)
     return root;
 }
 
-CNF merge(CNF F, CNF G)
+CNF merge(const CNF &F, const CNF &G)
 {
     CNF temp;
     temp.merge(F);
     temp.merge(G);
-
     return temp;
 }
 
 // Assumes that F and G are in CNF
 // DISTR (F , G) computes a CNF for F | G
-CNF DISTR(CNF F, CNF G)
+CNF DISTR(const CNF &F, const CNF &G)
 {
     if (G.empty())
         return F;
+
     if (F.empty())
         return G;
 
-    int n = F.size(), m = G.size();
+    CNF result;
 
-    if (n >= 2)
+    const auto &fClauses = F.getClauses();
+    const auto &gClauses = G.getClauses();
+
+    for (const auto &c1 : fClauses)
     {
-        auto temp = F.pop();
-        CNF F0 = CNF(temp);
-
-        return merge(DISTR(F0, G), DISTR(F, G));
+        for (const auto &c2 : gClauses)
+        {
+            std::set<int> clause = c1;
+            bool tautology = false;
+            for (int literal : c2)
+            {
+                if (clause.find(literal ^ 1) != clause.end())
+                {
+                    tautology = true;
+                    break;
+                }
+                clause.insert(c2.begin(), c2.end());
+            }
+            if (!tautology)
+                result.addClause(std::move(clause));
+        }
     }
 
-    if (m >= 2)
-    {
-        auto temp = G.pop();
-        CNF G0 = CNF(temp);
-
-        return merge(DISTR(F, G0), DISTR(F, G));
-    }
-
-    auto tmp1 = F.pop(), tmp2 = G.pop();
-
-    for (auto literal : tmp2)
-    {
-        tmp1.insert(literal);
-    }
-
-    return CNF(tmp1);
+    return result;
 }
-
 // Assumes formula already in NNF
 CNF convertToCNF(Node *root)
 {
@@ -189,12 +196,12 @@ CNF convertToCNF(Node *root)
 
     if (!(root->left) && !(root->right))
     {
-        return CNF({root->nodeString, true});
+        return CNF(root->id);
     }
 
     if (root->nodeString == "~")
     {
-        return CNF({root->left->nodeString, false});
+        return CNF((root->left->id ^ 1));
     }
 
     if (root->nodeString == "&")
