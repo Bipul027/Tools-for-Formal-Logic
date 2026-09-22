@@ -1,26 +1,42 @@
 #include "cnf.h"
 
 // CNF = {{} & {}... & {}}
-CNF::CNF()
+
+// Initialises an empty CNF
+CNF::CNF(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
 {
-    clauses = std::set<std::set<std::pair<std::string, bool>>>();
+    this->prop_to_id = prop_to_id;
+    this->id_to_prop = id_to_prop;
+    this->clauses = std::vector<std::set<int>>();
 }
 
-CNF::CNF(std::set<std::set<std::pair<std::string, bool>>> &clauses)
+// Initialises a CNF with a given set of clauses
+CNF::CNF(std::vector<std::set<int>> &clauses, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
 {
-    CNF();
+    CNF(id_to_prop, prop_to_id);
+
+    this->prop_to_id = prop_to_id;
+    this->id_to_prop = id_to_prop;
     this->clauses = clauses;
 }
 
-CNF::CNF(std::set<std::pair<std::string, bool>> &clause)
+// Initialises a CNF with exactly one clause
+CNF::CNF(std::set<int> &clause, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
 {
-    CNF();
-    clauses.insert(clause);
+    CNF(id_to_prop, prop_to_id);
+    this->prop_to_id = prop_to_id;
+    this->id_to_prop = id_to_prop;
+    clauses.push_back(clause);
 }
 
-CNF::CNF(std::string &prop, bool state)
+// Initialises a CNF with exactly one variable i.e. CNF := {{p}}
+CNF::CNF(std::string &prop, bool state, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
 {
-    clauses.insert({{prop, state}});
+    this->prop_to_id = prop_to_id;
+    this->id_to_prop = id_to_prop;
+    int propId = prop_to_id.at(prop);
+    int mul = state ? 1 : -1;
+    clauses.push_back({mul * propId});
 }
 
 bool CNF::empty()
@@ -42,17 +58,17 @@ void CNF::print()
 
         int n = clause.size();
         auto it = clause.begin();
-        while(n > 1)
+        while (n > 1)
         {
-            auto [prop, state] = *it;
-            std::cout << (state ? "" : "~");
-            std::cout << prop << "|";
+            int id = *it;
+            std::cout << (id < 0 ? "" : "~");
+            std::cout << id_to_prop[abs(id)] << "|";
             n--;
             it++;
         }
 
-        std::cout << (it->second ? "" : "~");
-        std::cout << it->first;
+        std::cout << (*it < 0 ? "" : "~");
+        std::cout << id_to_prop[abs(*it)];
         std::cout << ")";
 
         ct++;
@@ -66,11 +82,11 @@ void CNF::merge(CNF &other)
 {
     for (auto clause : other.clauses)
     {
-        clauses.insert(clause);
+        clauses.push_back(clause);
     }
 }
 
-std::set<std::pair<std::string, bool>> CNF::pop()
+std::set<int> CNF::pop()
 {
     auto it = clauses.begin();
     auto temp = *it;
@@ -79,13 +95,13 @@ std::set<std::pair<std::string, bool>> CNF::pop()
     return temp;
 }
 
-std::set<std::set<std::pair<std::string, bool>>> CNF::CNFtoTree()
+std::vector<std::set<int>> CNF::CNFtoTree()
 {
-    std::set<std::set<std::pair<std::string, bool>>> CNFSet;
+    std::vector<std::set<int>> CNFSet;
     for (const auto &clause : clauses)
     {
-        std::set<std::pair<std::string, bool>> clauseSet(clause.begin(), clause.end());
-        CNFSet.insert(clauseSet);
+        std::set<int> clauseSet(clause.begin(), clause.end());
+        CNFSet.push_back(clauseSet);
     }
     return CNFSet;
 }
