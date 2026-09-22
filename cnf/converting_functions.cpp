@@ -151,39 +151,28 @@ CNF merge(const CNF &F, const CNF &G)
 
 // Assumes that F and G are in CNF
 // DISTR (F , G) computes a CNF for F | G
-CNF DISTR(CNF F, CNF G)
+CNF DISTR(const CNF &F, const CNF &G)
 {
     if (G.empty())
         return F;
     if (F.empty())
         return G;
 
-    int n = F.size(), m = G.size();
+    CNF result;
 
-    if (n >= 2)
+    for (const auto &c1 : F.CNFtoTree())
     {
-        auto temp = F.pop();
-        CNF F0 = CNF(temp);
+        for (const auto &c2 : G.CNFtoTree())
+        {
+            std::set<int> clause = c1;
 
-        return merge(DISTR(F0, G), DISTR(F, G));
+            clause.insert(c2.begin(), c2.end());
+
+            result.addClause(clause);
+        }
     }
 
-    if (m >= 2)
-    {
-        auto temp = G.pop();
-        CNF G0 = CNF(temp);
-
-        return merge(DISTR(F, G0), DISTR(F, G));
-    }
-
-    auto tmp1 = F.pop(), tmp2 = G.pop();
-
-    for (auto literal : tmp2)
-    {
-        tmp1.insert(literal);
-    }
-
-    return CNF(tmp1);
+    return result;
 }
 
 // Assumes formula already in NNF

@@ -19,10 +19,11 @@ public:
     CNF(std::set<int> &clause);
     CNF(std::set<std::set<int>> &clauses);
     CNF(int id);
-    bool empty();
-    int size();
+    bool empty() const;
+    int size() const;
     void print(const std::vector<std::string> &propIdMap);
     void merge(const CNF &other);
     std::set<int> pop();
     std::set<std::set<int>> CNFtoTree() const;
+    std::set<std::set<int>> addClause(std::set<int> &clause);
 };

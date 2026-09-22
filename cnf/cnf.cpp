@@ -26,12 +26,12 @@ CNF::CNF(int id)
     clauses.insert({id});
 }
 
-bool CNF::empty()
+bool CNF::empty() const
 {
     return clauses.empty();
 }
 
-int CNF::size()
+int CNF::size() const
 {
     return clauses.size();
 }
@@ -85,4 +85,8 @@ std::set<int> CNF::pop()
 std::set<std::set<int>> CNF::CNFtoTree() const
 {
     return clauses;
+}
+std::set<std::set<int>> CNF::addClause(std::set<int> &clause)
+{
+    clauses.insert(clause);
 }
