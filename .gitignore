@@ -69,6 +69,7 @@ Testing/
 
 program
 benchmark
+diff.txt
 
 # testcases
 testcases.txt
