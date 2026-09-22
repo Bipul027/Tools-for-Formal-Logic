@@ -12,6 +12,7 @@ struct Node
 {
     std::string nodeString;
     Node *left, *right;
+    int aux_id = -1;
 
     Node() : left(nullptr), right(nullptr) {}
     Node(std::string str) : nodeString(str), left(nullptr), right(nullptr) {}
