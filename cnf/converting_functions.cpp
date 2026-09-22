@@ -155,26 +155,28 @@ CNF DISTR(const CNF &F, const CNF &G)
 {
     if (G.empty())
         return F;
+
     if (F.empty())
         return G;
 
     CNF result;
 
-    for (const auto &c1 : F.CNFtoTree())
+    const auto &fClauses = F.getClauses();
+    const auto &gClauses = G.getClauses();
+
+    for (const auto &c1 : fClauses)
     {
-        for (const auto &c2 : G.CNFtoTree())
+        for (const auto &c2 : gClauses)
         {
             std::set<int> clause = c1;
-
             clause.insert(c2.begin(), c2.end());
 
-            result.addClause(clause);
+            result.addClause(std::move(clause));
         }
     }
 
     return result;
 }
-
 // Assumes formula already in NNF
 CNF convertToCNF(Node *root)
 {

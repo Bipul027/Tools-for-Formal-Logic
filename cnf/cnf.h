@@ -25,5 +25,6 @@ public:
     void merge(const CNF &other);
     std::set<int> pop();
     std::set<std::set<int>> CNFtoTree() const;
-    std::set<std::set<int>> addClause(std::set<int> &clause);
+    void addClause(std::set<int> clause);
+    const std::set<std::set<int>> &getClauses() const;
 };

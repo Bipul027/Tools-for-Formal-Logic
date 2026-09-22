@@ -86,7 +86,11 @@ std::set<std::set<int>> CNF::CNFtoTree() const
 {
     return clauses;
 }
-std::set<std::set<int>> CNF::addClause(std::set<int> &clause)
+void CNF::addClause(std::set<int> clause)
 {
-    clauses.insert(clause);
+    clauses.insert(std::move(clause));
+}
+const std::set<std::set<int>> &CNF::getClauses() const
+{
+    return clauses;
 }
