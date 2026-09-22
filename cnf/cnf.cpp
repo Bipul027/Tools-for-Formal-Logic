@@ -3,29 +3,27 @@
 // CNF = {{} & {}... & {}}
 
 // Initialises an empty CNF
-CNF::CNF(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
+CNF::CNF()
 {
     this->clauses = std::set<std::set<int>>();
 }
 
 // Initialises a CNF with a given set of clauses
-CNF::CNF(std::set<std::set<int>> &clauses, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
+CNF::CNF(std::set<std::set<int>> &clauses)
 {
     this->clauses = clauses;
 }
 
 // Initialises a CNF with exactly one clause
-CNF::CNF(std::set<int> &clause, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
+CNF::CNF(std::set<int> &clause)
 {
     clauses.insert(clause);
 }
 
 // Initialises a CNF with exactly one variable i.e. CNF := {{p}}
-CNF::CNF(std::string &prop, bool state, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
+CNF::CNF(int id)
 {
-    int propId = prop_to_id.at(prop);
-    int mul = state ? 1 : -1;
-    clauses.insert({mul * propId});
+    clauses.insert({id});
 }
 
 bool CNF::empty()
@@ -38,7 +36,7 @@ int CNF::size()
     return clauses.size();
 }
 
-void CNF::print()
+void CNF::print(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
 {
     int ct = 0;
     for (auto &clause : clauses)
@@ -51,13 +49,13 @@ void CNF::print()
         {
             int id = *it;
             std::cout << (id < 0 ? "" : "~");
-            std::cout << id_to_prop[abs(id)] << "|";
+            std::cout << id_to_prop.at(abs(id)) << "|";
             n--;
             it++;
         }
 
         std::cout << (*it < 0 ? "" : "~");
-        std::cout << id_to_prop[abs(*it)];
+        std::cout << id_to_prop.at(abs(*it));
         std::cout << ")";
 
         ct++;
