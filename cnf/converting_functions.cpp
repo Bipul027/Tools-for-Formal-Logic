@@ -28,8 +28,16 @@ Node *IMPL_FREE(Node *root)
 Node *copyTree(Node *root)
 {
     if (!root)
-        return root;
-    return new Node(root->nodeString, copyTree(root->left), copyTree(root->right));
+        return nullptr;
+
+    Node *copy = new Node(
+        root->nodeString,
+        copyTree(root->left),
+        copyTree(root->right));
+
+    copy->id = root->id;
+
+    return copy;
 }
 
 Node *XOR_FREE(Node *root)
