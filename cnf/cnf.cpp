@@ -3,37 +3,26 @@
 // CNF = {{} & {}... & {}}
 
 // Initialises an empty CNF
-CNF::CNF(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF::CNF(const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
 {
-    this->prop_to_id = prop_to_id;
-    this->id_to_prop = id_to_prop;
     this->clauses = std::set<std::set<int>>();
 }
 
 // Initialises a CNF with a given set of clauses
-CNF::CNF(std::set<std::set<int>> &clauses, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF::CNF(std::set<std::set<int>> &clauses, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
 {
-    CNF(id_to_prop, prop_to_id);
-
-    this->prop_to_id = prop_to_id;
-    this->id_to_prop = id_to_prop;
     this->clauses = clauses;
 }
 
 // Initialises a CNF with exactly one clause
-CNF::CNF(std::set<int> &clause, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF::CNF(std::set<int> &clause, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
 {
-    CNF(id_to_prop, prop_to_id);
-    this->prop_to_id = prop_to_id;
-    this->id_to_prop = id_to_prop;
     clauses.insert(clause);
 }
 
 // Initialises a CNF with exactly one variable i.e. CNF := {{p}}
-CNF::CNF(std::string &prop, bool state, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id)
+CNF::CNF(std::string &prop, bool state, const std::unordered_map<int, std::string> &id_to_prop, const std::unordered_map<std::string, int> &prop_to_id) : prop_to_id(prop_to_id), id_to_prop(id_to_prop)
 {
-    this->prop_to_id = prop_to_id;
-    this->id_to_prop = id_to_prop;
     int propId = prop_to_id.at(prop);
     int mul = state ? 1 : -1;
     clauses.insert({mul * propId});
@@ -80,7 +69,7 @@ void CNF::print()
 
 void CNF::merge(CNF &other)
 {
-    for (auto clause : other.clauses)
+    for (auto &clause : other.clauses)
     {
         clauses.insert(clause);
     }
