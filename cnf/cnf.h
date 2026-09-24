@@ -27,4 +27,5 @@ public:
     std::set<std::set<int>> CNFtoTree() const;
     void addClause(std::set<int> clause);
     const std::set<std::set<int>> &getClauses() const;
+    int propNums() const;
 };

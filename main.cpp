@@ -2,6 +2,7 @@
 #include "cnf/converting_functions.h"
 #include "validity/validity.h"
 #include "tseiten/tseitin.h"
+#include "dpll/dpll.h"
 
 int main()
 {
@@ -21,6 +22,9 @@ int main()
     std::cout << "===========Tseitin Encoding==========" << "\n";
     std::pair<CNF, std::vector<std::string>> Tseitin_encoding = TseitinEncodedCNF(f);
     Tseitin_encoding.first.print(Tseitin_encoding.second);
+    bool SAT = DPLLCNF(Tseitin_encoding.first);
+    std::cout << ((SAT) ? "SATISFIABLE" : "UNSAT") << "\n";
+
     Node *UNI_NODE = UNI_ONLY(treeNode);
     std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
     Node *NNF_NODE = NNF(UNI_NODE);

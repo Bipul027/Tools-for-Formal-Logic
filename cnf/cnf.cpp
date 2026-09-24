@@ -113,3 +113,18 @@ const std::set<std::set<int>> &CNF::getClauses() const
 {
     return clauses;
 }
+
+int CNF::propNums() const
+{
+    int maxElement = 0;
+    bool found = false;
+    for (const auto &clause : clauses)
+    {
+        if (!clause.empty())
+        {
+            maxElement = std::max(maxElement, *clause.rbegin());
+            found = true;
+        }
+    }
+    return (found ? maxElement / 2 : 0);
+}
