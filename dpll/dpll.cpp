@@ -41,6 +41,7 @@ bool UnitPropagate(const CNF &F, std::unordered_map<int, int> &part_assign)
     {
         int idTopropagate = 0;
         int num_unassigned = 0;
+        bool sat = false;
         for (const auto &varId : clause)
         {
             if (part_assign[varId / 2] == -1)
@@ -50,10 +51,13 @@ bool UnitPropagate(const CNF &F, std::unordered_map<int, int> &part_assign)
                 continue;
             }
             if ((part_assign[varId / 2] ^ varId) % 2)
+            {
+                sat = true;
                 break;
-            else
-                continue;
+            }
         }
+        if (sat)
+            continue;
         if (num_unassigned == 1)
         {
             part_assign[idTopropagate / 2] = (idTopropagate ^ 1) % 2;
