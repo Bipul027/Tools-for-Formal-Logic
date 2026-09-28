@@ -21,15 +21,16 @@ int evaluateClause(const std::set<int> &clause, const std::unordered_map<int, in
 int evaluateCNF(const CNF &F, const std::unordered_map<int, int> &part_assign)
 {
     std::set<std::set<int>> clauses = F.getClauses();
+    bool unassigned = false;
     for (const auto &clause : clauses)
     {
         int res = evaluateClause(clause, part_assign);
         if (res == 0)
             return 0;
         if (res == -1)
-            return -1;
+            unassigned = true;
     }
-    return 1;
+    return unassigned ? -1 : 1;
 }
 
 bool UnitPropagate(const CNF &F, std::unordered_map<int, int> &part_assign)
@@ -105,10 +106,12 @@ bool DPLLCNF(const CNF &F, std::unordered_map<int, int> &part_assign)
             break;
         }
     }
+    std::unordered_map<int, int> copy_assign = part_assign;
     part_assign[decisionId] = 0;
 
     if (DPLLCNF(F, part_assign))
         return true;
+    part_assign = copy_assign;
     part_assign[decisionId] = 1;
 
     return DPLLCNF(F, part_assign);
