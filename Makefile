@@ -1,10 +1,10 @@
 
 CXX = g++
-CXXFLAGS = -Wall -Wextra -g -std=c++17 -I./wff -I./evaluator
+CXXFLAGS = -Wall -O3 -Wextra -g -std=c++17 -I./wff -I./evaluator
 
 TARGET = program
 
-SRCS = main.cpp wff/validator.cpp evaluator/evaluator.cpp wff/tree_to_str.cpp cnf/converting_functions.cpp cnf/cnf.cpp validity/validity.cpp tseiten/tseitin.cpp dpll/dpll.cpp
+SRCS = main.cpp wff/validator.cpp evaluator/evaluator.cpp wff/tree_to_str.cpp cnf/converting_functions.cpp cnf/cnf.cpp validity/validity.cpp tseiten/tseitin.cpp dpll/dpll.cpp cdcl/cdcl.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 

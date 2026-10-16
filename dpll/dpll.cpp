@@ -70,7 +70,6 @@ bool UnitPropagate(const CNF &F, std::unordered_map<int, int> &part_assign)
 
 bool DPLL(Formula formula)
 {
-    Node *root = formula.root;
     std::pair<CNF, std::vector<std::string>> TseitinEncoded = TseitinEncodedCNF(formula);
     return DPLLCNF(TseitinEncoded.first);
 }

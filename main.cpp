@@ -3,6 +3,7 @@
 #include "validity/validity.h"
 #include "tseiten/tseitin.h"
 #include "dpll/dpll.h"
+#include "cdcl/cdcl.h"
 
 int main()
 {
@@ -10,6 +11,7 @@ int main()
     std::getline(std::cin, s);
     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
     Formula f = Formula(s);
+    Formula copy = f;
     Node *treeNode = f.root;
     f.printTree();
     assignment a;
@@ -23,8 +25,11 @@ int main()
     std::pair<CNF, std::vector<std::string>> Tseitin_encoding = TseitinEncodedCNF(f);
     Tseitin_encoding.first.print(Tseitin_encoding.second);
     bool SAT = DPLLCNF(Tseitin_encoding.first);
+    std::cout << "===============DPLL================" << "\n";
     std::cout << ((SAT) ? "SATISFIABLE" : "UNSAT") << "\n";
-
+    SAT = CDCLCNF(Tseitin_encoding.first);
+    std::cout << "===============CDCL============" << "\n";
+    std::cout << ((SAT) ? "SATISFIABLE" : "UNSAT") << "\n";
     Node *UNI_NODE = UNI_ONLY(treeNode);
     std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
     Node *NNF_NODE = NNF(UNI_NODE);
