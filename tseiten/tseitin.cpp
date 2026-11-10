@@ -1,70 +1,65 @@
 
 #include "tseitin.h"
 
-// This is the function which recurses without the root in its clauses.
-// It basically checks over the operator at the root and adds the required clause and recurses deeper into the tree.
-// At last merged with the smaller sub CNF formulas.
-CNF TseitinWithoutRootRecursive(Node *root)
+void TseitinRecursive(Node *root, CNF &tseitin)
 {
-    CNF tseitin = CNF();
-    if (!root)
-        return tseitin;
-    if (!root->left && !root->right)
-        return tseitin;
-    CNF tseitin_left = TseitinWithoutRootRecursive(root->left);
-    CNF tseitin_right = TseitinWithoutRootRecursive(root->right);
-    if (root->nodeString == "|")
+    if (!root || (!root->left && !root->right))
+        return;
+    TseitinRecursive(root->left, tseitin);
+    TseitinRecursive(root->right, tseitin);
+    const int a = root->aux_id;
+    const int p = root->left->aux_id;
+    const char op = root->nodeString[0];
+    switch (op)
     {
-        // add clauses (~a|p|q),(a|~p),(a|~q)
-        int a = root->aux_id;
-        int p = root->left->aux_id;
-        int q = root->right->aux_id;
+    case '|':
+    {
+        const int q = root->right->aux_id;
         tseitin.addClause({a ^ 1, p, q});
         tseitin.addClause({a, q ^ 1});
         tseitin.addClause({a, p ^ 1});
+        break;
     }
-    else if (root->nodeString == "&")
+    case '&':
     {
-        // add clauses (~a|p),(~a|q),(a|~p|~q)
-        int a = root->aux_id;
-        int p = root->left->aux_id;
-        int q = root->right->aux_id;
+        const int q = root->right->aux_id;
         tseitin.addClause({a ^ 1, p});
         tseitin.addClause({a ^ 1, q});
         tseitin.addClause({a, p ^ 1, q ^ 1});
+        break;
     }
-    else if (root->nodeString == ">")
+    case '>':
     {
-        // add clauses (~a|~p|q),(a|p),(a|~q)
-        int a = root->aux_id;
-        int p = root->left->aux_id;
-        int q = root->right->aux_id;
+        const int q = root->right->aux_id;
         tseitin.addClause({a ^ 1, p ^ 1, q});
         tseitin.addClause({a, p});
         tseitin.addClause({a, q ^ 1});
+        break;
     }
-    else if (root->nodeString == "^")
+    case '^':
     {
-        // add clauses (~a|p|q),(~a|~p|~q),(a|p|~q),(a|~p|q)
-        int a = root->aux_id;
-        int p = root->left->aux_id;
-        int q = root->right->aux_id;
+        const int q = root->right->aux_id;
         tseitin.addClause({a ^ 1, p ^ 1, q ^ 1});
         tseitin.addClause({a ^ 1, p, q});
         tseitin.addClause({a, p, q ^ 1});
         tseitin.addClause({a, p ^ 1, q});
+        break;
     }
-    else if (root->nodeString == "~")
-    {
-        // add clause (~a|~p), (a|p)
-        int a = root->aux_id;
-        int p = root->left->aux_id;
-
+    case '~':
         tseitin.addClause({a ^ 1, p ^ 1});
         tseitin.addClause({a, p});
+        break;
     }
-    tseitin.merge(tseitin_left);
-    tseitin.merge(tseitin_right);
+}
+
+// This is the function which recurses without the root in its clauses.
+// It basically checks over the operator at the root and adds the required clause and recurses deeper into the tree.
+// At last merged with the smaller sub CNF formulas.
+
+CNF TseitinWithoutRootRecursive(Node *root)
+{
+    CNF tseitin;
+    TseitinRecursive(root, tseitin);
     return tseitin;
 }
 
@@ -101,9 +96,11 @@ void AssignAuxId(Node *root, std::vector<std::string> &propIdMap)
     }
     AssignAuxId(root->left, propIdMap);
     AssignAuxId(root->right, propIdMap);
-    root->aux_id = 2 * static_cast<int>(propIdMap.size() + 1);
-    propIdMap.push_back("a" + std::to_string(root->aux_id / 2));
-
+    int varIdx = static_cast<int>(propIdMap.size()) + 1;
+    root->aux_id = varIdx << 1;
+    std::string name = "a";
+    name += std::to_string(varIdx);
+    propIdMap.push_back(std::move(name));
     return;
 }
 
@@ -116,13 +113,13 @@ void AssignAuxId(Node *root, std::vector<std::string> &propIdMap)
 // At last we insert the root unit clause and return.
 std::pair<CNF, std::vector<std::string>> TseitinEncodedCNF(Formula formula)
 {
-    CNF tseitin = CNF();
+
     Node *root = formula.root;
     if (!root)
-        return {tseitin, {}};
-    std::vector<std::string> propIdMap = formula.propIdMap;
+        return {CNF(), {}};
+    std::vector<std::string> propIdMap = std::move(formula.propIdMap);
     AssignAuxId(root, propIdMap);
     CNF clauses = TseitinWithoutRootRecursive(root);
     clauses.addClause({root->aux_id});
-    return {clauses, propIdMap};
+    return {std::move(clauses), std::move(propIdMap)};
 }

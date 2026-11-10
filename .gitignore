@@ -74,3 +74,5 @@ diff.txt
 # testcases
 testcases.txt
 .venv
+input.txt
+profile_out

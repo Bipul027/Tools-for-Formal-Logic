@@ -3,21 +3,17 @@
 // CNF = {{} & {}... & {}}
 
 // Initialises an empty CNF
-CNF::CNF()
-{
-    this->clauses = std::set<std::set<int>>();
-}
+CNF::CNF() = default;
 
 // Initialises a CNF with a given set of clauses
-CNF::CNF(std::set<std::set<int>> &clauses)
+CNF::CNF(std::set<std::set<int>> &clauses) : clauses(std::move(clauses))
 {
-    this->clauses = clauses;
 }
 
 // Initialises a CNF with exactly one clause
 CNF::CNF(std::set<int> &clause)
 {
-    clauses.insert(clause);
+    clauses.insert(std::move(clause));
 }
 
 // Initialises a CNF with exactly one variable i.e. CNF := {{p}}
@@ -86,19 +82,12 @@ void CNF::print(const std::vector<std::string> &propIdMap)
 
 void CNF::merge(const CNF &other)
 {
-    for (auto &clause : other.clauses)
-    {
-        clauses.insert(clause);
-    }
+    clauses.insert(other.clauses.begin(), other.clauses.end());
 }
 
 std::set<int> CNF::pop()
 {
-    auto it = clauses.begin();
-    auto temp = *it;
-    clauses.erase(it);
-
-    return temp;
+    return std::move(clauses.extract(clauses.begin()).value());
 }
 
 std::set<std::set<int>> CNF::CNFtoTree() const
@@ -117,14 +106,12 @@ const std::set<std::set<int>> &CNF::getClauses() const
 int CNF::propNums() const
 {
     int maxElement = 0;
-    bool found = false;
     for (const auto &clause : clauses)
     {
         if (!clause.empty())
         {
             maxElement = std::max(maxElement, *clause.rbegin());
-            found = true;
         }
     }
-    return (found ? maxElement / 2 : 0);
+    return maxElement >> 1;
 }

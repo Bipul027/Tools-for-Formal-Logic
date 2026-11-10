@@ -3,9 +3,9 @@ namespace CDCLnamespace
 {
     using Clause = std::set<int>;
     using Clauses = std::vector<Clause>;
-    using Model = std::unordered_map<int, int>;
-    using Level = std::unordered_map<int, int>;
-    using Reason = std::unordered_map<int, int>;
+    using Model = std::vector<int>;
+    using Level = std::vector<int>;
+    using Reason = std::vector<int>;
     using Dstack = std::vector<int>;
     using Dstacklevel = std::vector<int>;
 }
@@ -26,7 +26,7 @@ struct Conflict
     int backtrackLevel;
 };
 
-int cdclevaluateClause(const std::set<int> &clause, const std::unordered_map<int, int> &model)
+int cdclevaluateClause(const std::set<int> &clause, const Model &model)
 {
     // return -1 if the clause is unassigned, 0 if false, 1 if true
     int res = 0;
@@ -45,7 +45,7 @@ int cdclevaluateClause(const std::set<int> &clause, const std::unordered_map<int
 }
 
 // evaluates a CNF under a partial model, returns 1 if true, 0 if false, -1 if unassigned
-int evaluateCNF(const Clauses &clauses, const std::unordered_map<int, int> &model)
+int evaluateCNF(const Clauses &clauses, const Model &model)
 {
 
     bool unassigned = false;
@@ -128,12 +128,12 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
     int count = 0;
     int p = -1;
 
-    Clause cur = clause;
+    const Clause *cur = &clause;
     int dstackIdx = static_cast<int>(dstack.size()) - 1;
 
     while (true)
     {
-        for (const auto &varId : cur)
+        for (const auto &varId : *cur)
         {
             if (p != -1 && varId / 2 == p / 2)
                 continue;
@@ -162,7 +162,7 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
         count--;
         if (count > 0)
         {
-            int reason_clause = reason.at(p / 2);
+            int reason_clause = reason[p / 2];
 
             if (reason_clause == -1)
             {
@@ -170,7 +170,7 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
                     "AnalyzeConflict: could not find a relevant "
                     "literal on the trail.");
             }
-            cur = clauses[reason_clause];
+            cur = &clauses[reason_clause];
         }
         if (count == 0)
             break;
@@ -209,7 +209,7 @@ void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason
 
 int Decide(Model &model)
 {
-    for (int i = 1; i <= static_cast<int>(model.size()); i++)
+    for (int i = 1; i < static_cast<int>(model.size()); i++)
     {
         if (model[i] == UNASSIGNED)
             return i;
@@ -219,10 +219,10 @@ int Decide(Model &model)
 
 bool CDCLClauses(Clauses &clauses, int propNums)
 {
-    Model model;
-    Level level;
+    Model model(propNums + 1, UNASSIGNED);
+    Level level(propNums + 1, 0);
     // index of the clause in clauses vector which is responsible for assigning a variable of id i;
-    Reason reason;
+    Reason reason(propNums + 1, -1);
     // stores every assignment in order from the start
     Dstack dstack;
     // dstack_level[i] returns an index in dstack from which the decision level i started
@@ -246,7 +246,7 @@ bool CDCLClauses(Clauses &clauses, int propNums)
                 return false;
             Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, dlevel);
             Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel);
-            clauses.push_back(conflictAnalysis.learntClause);
+            clauses.push_back(std::move(conflictAnalysis.learntClause));
             int Id = conflictAnalysis.Id;
             model[Id / 2] = (Id ^ 1) % 2;
             level[Id / 2] = dlevel;
