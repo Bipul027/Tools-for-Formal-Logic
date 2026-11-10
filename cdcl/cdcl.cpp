@@ -1,7 +1,7 @@
 #include "cdcl.h"
 namespace CDCLnamespace
 {
-    using Clause = std::set<int>;
+    using Clause = std::vector<int>;
     using Clauses = std::vector<Clause>;
     using Model = std::vector<int>;
     using Level = std::vector<int>;
@@ -26,7 +26,7 @@ struct Conflict
     int backtrackLevel;
 };
 
-int cdclevaluateClause(const std::set<int> &clause, const Model &model)
+int cdclevaluateClause(const Clause &clause, const Model &model)
 {
     // return -1 if the clause is unassigned, 0 if false, 1 if true
     int res = 0;
@@ -120,10 +120,13 @@ int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, 
 Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &level, Reason &reason, Dstack &dstack, int dlevel)
 {
     Conflict conflict_analysis;
-    conflict_analysis.learntClause = std::set<int>();
+    conflict_analysis.learntClause = std::vector<int>();
     conflict_analysis.backtrackLevel = dlevel;
-    int propNums = static_cast<int>(model.size());
-    std::vector<bool> seen(propNums + 1, false);
+    int btLevel = 0;
+    static thread_local std::vector<bool> seen;
+
+    if (seen.size() < model.size())
+        seen.resize(model.size(), 0);
 
     int count = 0;
     int p = -1;
@@ -135,55 +138,35 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
     {
         for (const auto &varId : *cur)
         {
+            int v = varId >> 1;
             if (p != -1 && varId / 2 == p / 2)
                 continue;
-            if (seen[varId / 2] == false && level[varId / 2] > 0)
+            if (seen[v] == false && level[v] > 0)
             {
-                seen[varId / 2] = true;
-                if (level[varId / 2] == dlevel)
+                seen[v] = true;
+                if (level[v] == dlevel)
                     count++;
                 else
-                    conflict_analysis.learntClause.insert(varId);
+                {
+                    conflict_analysis.learntClause.push_back(varId);
+                    btLevel = std::max(btLevel, level[v]);
+                }
             }
         }
         while (dstackIdx >= 0 && seen[dstack[dstackIdx] / 2] == false)
         {
             dstackIdx--;
         }
-        if (dstackIdx < 0)
-        {
-            throw std::logic_error(
-                "AnalyzeConflict: could not find a relevant "
-                "literal on the trail.");
-        }
-        p = dstack[dstackIdx];
-        dstackIdx--;
-        seen[p / 2] = false;
-        count--;
-        if (count > 0)
-        {
-            int reason_clause = reason[p / 2];
-
-            if (reason_clause == -1)
-            {
-                throw std::logic_error(
-                    "AnalyzeConflict: could not find a relevant "
-                    "literal on the trail.");
-            }
-            cur = &clauses[reason_clause];
-        }
-        if (count == 0)
+        p = dstack[dstackIdx--];
+        seen[p >> 1] = false;
+        if (--count == 0)
             break;
     }
+
+    for (int Id : conflict_analysis.learntClause)
+        seen[Id >> 1] = 0;
     conflict_analysis.Id = p ^ 1;
-    conflict_analysis.learntClause.insert(p ^ 1);
-    int btLevel = 0;
-    for (auto &Id : (conflict_analysis.learntClause))
-    {
-        if (Id == (p ^ 1))
-            continue;
-        btLevel = std::max(btLevel, level[Id / 2]);
-    }
+    conflict_analysis.learntClause.push_back(p ^ 1);
     conflict_analysis.backtrackLevel = btLevel;
     return conflict_analysis;
 }
@@ -277,7 +260,10 @@ bool CDCL(Formula formula)
 
 bool CDCLCNF(const CNF &F)
 {
-    std::set<Clause> set_clauses = F.getClauses();
-    Clauses clauses = std::vector<Clause>(set_clauses.begin(), set_clauses.end());
+    const auto &set_clauses = F.getClauses();
+    Clauses clauses;
+    clauses.reserve(set_clauses.size());
+    for (const auto &s : set_clauses)
+        clauses.emplace_back(s.begin(), s.end());
     return CDCLClauses(clauses, F.propNums());
 }
