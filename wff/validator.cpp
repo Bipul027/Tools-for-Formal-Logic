@@ -143,7 +143,7 @@ void Formula::printTree()
 
 bool Formula::evaluateFormula(assignment &assign, Node *root)
 {
-    std::map<std::string, bool> model = assign.model;
+    std::map<std::string, bool> &model = assign.model;
     if (!isUnaryOperator((root->nodeString)[0]) && !isBinaryOperator((root->nodeString)[0]))
         return model[root->nodeString];
 
@@ -151,15 +151,15 @@ bool Formula::evaluateFormula(assignment &assign, Node *root)
         return !evaluateFormula(assign, root->left);
 
     if (root->nodeString == "|")
-        return (evaluateFormula(assign, root->left) | evaluateFormula(assign, root->right));
+        return (evaluateFormula(assign, root->left) || evaluateFormula(assign, root->right));
 
     if (root->nodeString == "&")
-        return (evaluateFormula(assign, root->left) & evaluateFormula(assign, root->right));
+        return (evaluateFormula(assign, root->left) && evaluateFormula(assign, root->right));
 
     if (root->nodeString == "^")
-        return (evaluateFormula(assign, root->left) ^ evaluateFormula(assign, root->right));
+        return (evaluateFormula(assign, root->left) != evaluateFormula(assign, root->right));
 
     if (root->nodeString == ">")
-        return (!evaluateFormula(assign, root->left) | evaluateFormula(assign, root->right));
+        return (!evaluateFormula(assign, root->left) || evaluateFormula(assign, root->right));
     return true;
 };

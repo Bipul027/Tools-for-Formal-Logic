@@ -119,6 +119,8 @@ int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, 
 
 Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &level, Reason &reason, Dstack &dstack, int dlevel)
 {
+    (void)clauses;
+    (void)reason;
     Conflict conflict_analysis;
     conflict_analysis.learntClause = std::vector<int>();
     conflict_analysis.backtrackLevel = dlevel;
