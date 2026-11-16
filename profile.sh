@@ -11,6 +11,10 @@
 #   SKIP=cdcl ./profile.sh                # parse + Tseitin only (no solver)
 #   NOBUILD=1 ./profile.sh big.txt        # reuse existing ./program (must be a PROFILE_MODE build)
 #   KEEP_EXTRA='^std::sort' ./profile.sh  # also keep frames matching this regex
+#   GEN_ARGS="sat3 --vars 100" ./profile.sh              # hard SAT instance so the solver actually runs
+#   ROOTS="CDCLCNF UnitPropagate" ./profile.sh           # extra graphs rooted at these functions (names as in report_user_functions.txt)
+#   INLINE_MODE=none ./profile.sh                        # -fno-inline: even tiny functions of yours get their own frame
+#   REFOLD=1 ./profile.sh                                # skip build + recording, just redo the filtering/graphs from the last perf.data
 #   REPEATS=20 WIDTH=2000 FREQ=999 ./profile.sh big.txt   (REPEATS defaults to "auto": enough runs for ~3 s)
 #
 # Needs filter_user_frames.py next to this script.
@@ -39,8 +43,12 @@ export SKIP="${SKIP:-}"
 BIN="./program"
 COMM="$(basename "$BIN")"               # only samples from this process name are kept (drops bash/make noise)
 
-# Functions to build a dedicated flame graph for (stacks that contain the name).
-STAGES=(buildParseTree evaluateFormula TseitinEncodedCNF CDCLCNF)
+# Functions to build a dedicated flame graph for. Each graph is ROOTED at that function and shows
+# everything it calls (in your code), e.g. CDCLCNF -> UnitPropagate -> ..., with percentages relative to it.
+ROOTS="${ROOTS:-buildParseTree TseitinEncodedCNF CDCLCNF}"
+# user  = every non-inline function of yours keeps its own frame (default)
+# none  = -fno-inline: also functions defined inline in headers (slower, distorts std:: container costs)
+INLINE_MODE="${INLINE_MODE:-user}"
 
 # ---- Sanity checks ----
 command -v perf >/dev/null || { echo "perf not found (sudo apt install linux-tools-common linux-tools-generic)"; exit 1; }
@@ -68,6 +76,8 @@ fi
 
 mkdir -p "$OUT_DIR"
 
+if [ "${REFOLD:-0}" != "1" ]; then
+
 # ---- Input ----
 if [ -z "$INPUT" ]; then
   [ -f gen_formula.py ] || { echo "No input given and gen_formula.py not found in the current folder."; exit 1; }
@@ -81,8 +91,15 @@ fi
 # Overriding CXXFLAGS on the command line replaces the Makefile's value,
 # so the include paths must be repeated here.
 if [ "$NOBUILD" != "1" ]; then
+  # Keep every function of yours as its own stack frame. Otherwise GCC inlines small and called-once
+  # functions (e.g. UnitPropagate into CDCLCNF) and tail-calls away frames, so they vanish from the profile.
+  if [ "$INLINE_MODE" = "none" ]; then
+    INLINE_FLAGS="-fno-inline"
+  else
+    INLINE_FLAGS="-fno-inline-small-functions -fno-inline-functions -fno-inline-functions-called-once -fno-partial-inlining"
+  fi
   PROFILE_FLAGS="-Wall -Wextra -std=c++17 -I./wff -I./evaluator \
--O2 -g -fno-omit-frame-pointer -fno-inline-functions -DPROFILE_MODE"
+-O2 -g -fno-omit-frame-pointer -fno-optimize-sibling-calls $INLINE_FLAGS -DPROFILE_MODE"
   echo ">> Building with: $PROFILE_FLAGS"
   make clean
   make -j"$(nproc)" CXXFLAGS="$PROFILE_FLAGS"
@@ -118,6 +135,12 @@ else
   ( ulimit -s unlimited 2>/dev/null || true; "${PERF_CMD[@]}" -- "$BIN" < "$INPUT" > /dev/null )
 fi
 
+else
+  [ -f "$OUT_DIR/perf.data" ] || { echo "REFOLD=1 needs $OUT_DIR/perf.data from a previous run"; exit 1; }
+  INPUT="${INPUT:-previous run}"
+  echo ">> REFOLD=1: reusing $OUT_DIR/perf.data (no build, no recording)"
+fi
+
 # ---- Fold stacks ----
 echo ">> Folding stacks"
 RAW="$OUT_DIR/out.raw.folded"          # every frame, recursion not merged
@@ -143,7 +166,8 @@ fi
 # Which symbols are yours? (anything in the binary whose source file is not under /usr, /lib, /opt)
 { nm -l --defined-only "$BIN" | c++filt -p; } > "$OUT_DIR/user_symbols.txt" 2>/dev/null || true
 
-FILTER_ARGS=(--symbols "$OUT_DIR/user_symbols.txt" --summary "$OUT_DIR/report_user_functions.txt")
+FILTER_ARGS=(--symbols "$OUT_DIR/user_symbols.txt" --summary "$OUT_DIR/report_user_functions.txt" \
+             --dropped "$OUT_DIR/report_dropped_frames.txt")
 [ -n "$KEEP_EXTRA" ] && FILTER_ARGS+=(--extra "$KEEP_EXTRA")
 python3 "$SCRIPT_DIR/filter_user_frames.py" "${FILTER_ARGS[@]}" < "$RAW" \
   | "$FLAMEGRAPH_DIR/stackcollapse-recursive.pl" /dev/stdin > "$USERFOLDED"
@@ -164,16 +188,45 @@ FG_OPTS=(--width "$WIDTH" --minwidth "$MINWIDTH" --fontsize "$FONTSIZE")
   --title "Your functions, leaf-first (where time lands): $INPUT" \
   "$USERFOLDED" > "$OUT_DIR/flamegraph_user_reversed.svg"
 
-for st in "${STAGES[@]}"; do
-  if grep -qF "$st" "$USERFOLDED"; then
-    grep -F "$st" "$USERFOLDED" \
-      | "$FLAMEGRAPH_DIR/flamegraph.pl" "${FG_OPTS[@]}" --title "Your functions, only stacks containing: $st" \
-      > "$OUT_DIR/stage_${st}.svg"
+# Re-roots folded stacks at function $1: keeps only stacks that pass through it and drops everything above it.
+reroot() {
+  awk -v fn="$1" '{
+    cnt = $NF
+    stack = substr($0, 1, length($0) - length(cnt) - 1)
+    n = split(stack, fr, ";")
+    start = 0
+    for (i = 1; i <= n; i++) if (fr[i] == fn) { start = i; break }
+    if (!start) next
+    out = fr[start]
+    for (i = start + 1; i <= n; i++) out = out ";" fr[i]
+    agg[out] += cnt
+  } END { for (k in agg) print k " " agg[k] }'
+}
+
+ROOT_TMP="$OUT_DIR/.root_tmp"
+for fn in $ROOTS; do
+  reroot "$fn" < "$USERFOLDED" > "$ROOT_TMP"
+  if [ -s "$ROOT_TMP" ]; then
+    "$FLAMEGRAPH_DIR/flamegraph.pl" "${FG_OPTS[@]}" --title "Everything $fn calls (your functions only): $INPUT" \
+      "$ROOT_TMP" > "$OUT_DIR/root_${fn}.svg"
+  else
+    echo "   no samples under '$fn': it finished too fast to be sampled (use a bigger / harder input),"
+    echo "   or the name differs; check the exact spelling in $OUT_DIR/report_user_functions.txt"
   fi
 done
+rm -f "$ROOT_TMP"
 
 "$FLAMEGRAPH_DIR/flamegraph.pl" "${FG_OPTS[@]}" --title "Everything incl. std:: and libc: $INPUT" \
   "$FOLDED" > "$OUT_DIR/flamegraph_all.svg"
+
+# ---- PNG copies: a PNG always scales to fit any image viewer (no cropping, but no zoom/search) ----
+if command -v rsvg-convert >/dev/null; then
+  for svg in "$OUT_DIR"/*.svg; do
+    rsvg-convert -w "$WIDTH" "$svg" -o "${svg%.svg}.png" 2>/dev/null || true
+  done
+else
+  echo "   (for PNG copies of the graphs: sudo apt install librsvg2-bin)"
+fi
 
 # ---- Text reports ----
 perf report -i "$OUT_DIR/perf.data" --comms "$COMM" --no-children -g none --percent-limit 0.5 --stdio 2>/dev/null \
@@ -187,7 +240,7 @@ echo
 echo ">> Done. Output in $OUT_DIR/:"
 echo "   flamegraph_user.svg           START HERE: only your functions, std::/libc time charged to the caller"
 echo "   flamegraph_user_reversed.svg  which of your functions the time lands in directly"
-echo "   stage_<name>.svg              your functions, one stage at a time"
+echo "   root_<function>.svg           one graph per name in ROOTS, e.g. root_CDCLCNF.svg = CDCLCNF and all it calls"
 echo "   report_user_functions.txt     ranking table of your functions"
 echo "   flamegraph_all.svg            everything, unfiltered (open in a browser, not an editor preview)"
 echo "   report_self.txt               raw perf self-time table (incl. std::)"

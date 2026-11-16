@@ -35,7 +35,7 @@ int cdclevaluateClause(const Clause &clause, const Model &model)
     {
         if (model.at(varId / 2) == UNASSIGNED)
             res = -1;
-        else if ((model.at(varId / 2) ^ varId) % 2)
+        else if ((model.at(varId / 2) ^ varId) & 1)
         {
             atleast_one_true = true;
             break;
@@ -86,13 +86,13 @@ int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, 
 
             for (const auto &varId : clause)
             {
-                if (model[varId / 2] == UNASSIGNED)
+                if (model[varId >> 1] == UNASSIGNED)
                 {
                     num_unassigned++;
                     idTopropagate = varId;
                     continue;
                 }
-                if ((model[varId / 2] ^ varId) % 2)
+                if ((model[varId >> 1] ^ varId) & 1)
                 {
                     sat = true;
                     break;
@@ -105,7 +105,7 @@ int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, 
                 return clause_index;
             if (num_unassigned == 1)
             {
-                model[idTopropagate / 2] = (idTopropagate ^ 1) % 2;
+                model[idTopropagate / 2] = (idTopropagate ^ 1) & 1;
                 level[idTopropagate / 2] = dlevel;
                 reason[idTopropagate / 2] = clause_index;
                 dstack.push_back(idTopropagate);
@@ -125,7 +125,7 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
     conflict_analysis.learntClause = std::vector<int>();
     conflict_analysis.backtrackLevel = dlevel;
     int btLevel = 0;
-    static thread_local std::vector<bool> seen;
+    static thread_local std::vector<char> seen;
 
     if (seen.size() < model.size())
         seen.resize(model.size(), 0);
@@ -163,6 +163,7 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
         seen[p >> 1] = false;
         if (--count == 0)
             break;
+        cur = &clauses[reason[p >> 1]];
     }
 
     for (int Id : conflict_analysis.learntClause)
@@ -215,13 +216,6 @@ bool CDCLClauses(Clauses &clauses, int propNums)
 
     int dlevel = 0;
 
-    for (int i = 1; i <= propNums; i++)
-    {
-        model[i] = UNASSIGNED;
-        level[i] = 0;
-        reason[i] = -1;
-    }
-
     while (true)
     {
         int conflict = UnitPropagate(clauses, model, level, reason, dstack, dlevel);
@@ -233,18 +227,18 @@ bool CDCLClauses(Clauses &clauses, int propNums)
             Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel);
             clauses.push_back(std::move(conflictAnalysis.learntClause));
             int Id = conflictAnalysis.Id;
-            model[Id / 2] = (Id ^ 1) % 2;
-            level[Id / 2] = dlevel;
-            reason[Id / 2] = static_cast<int>(clauses.size()) - 1;
+            model[Id >> 1] = (Id ^ 1) & 1;
+            level[Id >> 1] = dlevel;
+            reason[Id >> 1] = static_cast<int>(clauses.size()) - 1;
             dstack.push_back(Id);
             continue;
         }
-        int result = evaluateCNF(clauses, model);
-
-        if (result == true)
-            return true;
 
         int decisionId = Decide(model);
+        if (decisionId == 0)
+            return true;
+
+        // assign the decision ID to true
         model[decisionId] = TRUE;
         dlevel++;
         dstacklevel.push_back(dstack.size());
@@ -254,7 +248,7 @@ bool CDCLClauses(Clauses &clauses, int propNums)
     }
 }
 
-bool CDCL(Formula formula)
+bool CDCL(const Formula &formula)
 {
     std::pair<CNF, std::vector<std::string>> TseitinEncoded = TseitinEncodedCNF(formula);
     return CDCLCNF(TseitinEncoded.first);
