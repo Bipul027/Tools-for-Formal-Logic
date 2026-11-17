@@ -105,7 +105,7 @@ bool InitializeWatches(Clauses &clauses, Model &model, Level &level, Reason &rea
         c.erase(std::unique(c.begin(), c.end()), c.end());
 
         bool tautology = false;
-        for (size_t k = 0; k + 1< c.size(); k++)
+        for (size_t k = 0; k + 1 < c.size(); k++)
             if ((c[k] ^ 1) == c[k + 1])
             {
                 tautology = true;

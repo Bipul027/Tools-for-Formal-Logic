@@ -39,11 +39,13 @@ private:
     bool isUnaryOperator(char x);
     bool isBinaryOperator(char x);
     void printParseTree(Node *root);
+    Node *parse(const std::string &s, size_t &pos);
 
 public:
     Node *root;
     int propNums = 0;
     std::vector<std::string> propIdMap;
+    std::unordered_map<std::string, int> propToId;
 
     Formula() : root(nullptr) {}
     Formula(Node *root) : root(root) {}

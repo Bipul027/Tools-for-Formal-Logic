@@ -10,14 +10,14 @@
 class CNF
 {
 private:
-    std::set<std::set<int>> clauses;
+    std::vector<std::set<int>> clauses;
     // std::unordered_map<std::string, int> prop_to_id;
     // std::unordered_map<int, std::string> id_to_prop;
 
 public:
     CNF();
     CNF(std::set<int> &clause);
-    CNF(std::set<std::set<int>> &clauses);
+    CNF(std::vector<std::set<int>> clauses);
     CNF(int id);
     bool empty() const;
     int size() const;
@@ -26,6 +26,6 @@ public:
     std::set<int> pop();
     std::set<std::set<int>> CNFtoTree() const;
     void addClause(std::set<int> clause);
-    const std::set<std::set<int>> &getClauses() const;
+    const std::vector<std::set<int>> &getClauses() const;
     int propNums() const;
 };

@@ -6,20 +6,21 @@
 CNF::CNF() = default;
 
 // Initialises a CNF with a given set of clauses
-CNF::CNF(std::set<std::set<int>> &clauses) : clauses(std::move(clauses))
+CNF::CNF(std::vector<std::set<int>> clauses) : clauses(std::make_move_iterator(clauses.begin()),
+                                                       std::make_move_iterator(clauses.end()))
 {
 }
 
 // Initialises a CNF with exactly one clause
 CNF::CNF(std::set<int> &clause)
 {
-    clauses.insert(std::move(clause));
+    clauses.push_back(std::move(clause));
 }
 
 // Initialises a CNF with exactly one variable i.e. CNF := {{p}}
 CNF::CNF(int id)
 {
-    clauses.insert({id});
+    clauses.push_back({id});
 }
 
 bool CNF::empty() const
@@ -82,23 +83,25 @@ void CNF::print(const std::vector<std::string> &propIdMap)
 
 void CNF::merge(const CNF &other)
 {
-    clauses.insert(other.clauses.begin(), other.clauses.end());
+    clauses.insert(clauses.end(), other.clauses.begin(), other.clauses.end());
 }
 
 std::set<int> CNF::pop()
 {
-    return std::move(clauses.extract(clauses.begin()).value());
+    std::set<int> clause = std::move(clauses.back());
+    clauses.pop_back();
+    return clause;
 }
 
 std::set<std::set<int>> CNF::CNFtoTree() const
 {
-    return clauses;
+    return std::set(clauses.begin(), clauses.end());
 }
 void CNF::addClause(std::set<int> clause)
 {
-    clauses.insert(std::move(clause));
+    clauses.push_back(std::move(clause));
 }
-const std::set<std::set<int>> &CNF::getClauses() const
+const std::vector<std::set<int>> &CNF::getClauses() const
 {
     return clauses;
 }

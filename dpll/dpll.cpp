@@ -20,7 +20,7 @@ int evaluateClause(const std::set<int> &clause, const std::unordered_map<int, in
 
 int evaluateCNF(const CNF &F, const std::unordered_map<int, int> &part_assign)
 {
-    std::set<std::set<int>> clauses = F.getClauses();
+    std::vector<std::set<int>> clauses = F.getClauses();
     bool unassigned = false;
     for (const auto &clause : clauses)
     {
@@ -36,7 +36,7 @@ int evaluateCNF(const CNF &F, const std::unordered_map<int, int> &part_assign)
 bool UnitPropagate(const CNF &F, std::unordered_map<int, int> &part_assign)
 {
     bool propagate = false;
-    std::set<std::set<int>> clauses = F.getClauses();
+    std::vector<std::set<int>> clauses = F.getClauses();
 
     for (const auto &clause : clauses)
     {

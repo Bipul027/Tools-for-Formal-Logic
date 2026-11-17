@@ -20,12 +20,14 @@ bool Node::isNodeValid()
     }
     return true;
 }
+
 bool Formula::isUnaryOperator(char x)
 {
     if (x == '~')
         return true;
     return false;
 }
+
 bool Formula::isBinaryOperator(char x)
 {
     if (x == '&' || x == '^' || x == '|' || x == '>')
@@ -37,88 +39,128 @@ bool Formula::isBinaryOperator(char x)
  * Syntax for the Formula (Strict) in Backus-Naur Form
  * F ::= p or ~(p) or (F | F) or (F & F) or (F ^ F) or (F > F) or ~(F)
  */
+
+Node *Formula::parse(const std::string &s, size_t &pos)
+{
+    if (s[pos] == '~')
+    {
+        pos++;
+        return new Node("~", parse(s, pos), nullptr);
+    }
+    if (s[pos] == '(')
+    {
+        pos++;
+        Node *left = parse(s, pos);
+        if (s[pos] == ')')
+        {
+            ++pos;
+            return left;
+        }
+        const char op = s[pos++];
+        Node *right = parse(s, pos);
+        pos++;
+        return new Node(std::string(1, op), left, right);
+    }
+    // base case
+    const size_t start = pos;
+    while (pos < s.size() && s[pos] != '(' && s[pos] != ')' && !isBinaryOperator(s[pos]) && s[pos] != '~')
+        pos++;
+    std::string name = s.substr(start, pos - start);
+    auto [it, inserted] = propToId.try_emplace(name, 0);
+    if (inserted)
+    {
+        propIdMap.push_back(name);
+        it->second = static_cast<int>(propIdMap.size());
+    }
+    Node *leaf = new Node(name);
+    leaf->id = 2 * it->second;
+    return leaf;
+}
+
 Node *Formula::buildParseTree(std::string &formulaString)
 {
-    int n = formulaString.size();
+    size_t pos = 0;
+    return parse(formulaString, pos);
+    //     int n = formulaString.size();
 
-    /**
-     * If the string starts with ~ then F ::= ~(G), hence we recursively build the parsetree of G and attach it as a leftChild for '~'
-     */
-    if (formulaString[0] == '~')
-    {
-        std::string str = formulaString.substr(1, n - 1);
-        Node *l = buildParseTree(str);
+    //     /**
+    //      * If the string starts with ~ then F ::= ~(G), hence we recursively build the parsetree of G and attach it as a leftChild for '~'
+    //      */
+    //     if (formulaString[0] == '~')
+    //     {
+    //         std::string str = formulaString.substr(1, n - 1);
+    //         Node *l = buildParseTree(str);
 
-        return new Node("~", l, nullptr);
-    }
-    /**
-     * If the string starts with ( the  F ::= (G op H)
-     */
-    if (formulaString[0] == '(')
-    {
+    //         return new Node("~", l, nullptr);
+    //     }
+    //     /**
+    //      * If the string starts with ( the  F ::= (G op H)
+    //      */
+    //     if (formulaString[0] == '(')
+    //     {
 
-        bool noOperatorInString = true;
-        for (char x : formulaString)
-        {
-            if (isBinaryOperator(x))
-                noOperatorInString = false;
-        }
+    //         bool noOperatorInString = true;
+    //         for (char x : formulaString)
+    //         {
+    //             if (isBinaryOperator(x))
+    //                 noOperatorInString = false;
+    //         }
 
-        if (noOperatorInString)
-        {
-            return new Node(formulaString);
-        }
+    //         if (noOperatorInString)
+    //         {
+    //             return new Node(formulaString);
+    //         }
 
-        int count = 0, indexOfOperator = -1;
-        for (int i = 1; i < n; i++)
-        {
-            if (formulaString[i] == '(')
-                count++;
-            else if (formulaString[i] == ')')
-                count--;
+    //         int count = 0, indexOfOperator = -1;
+    //         for (int i = 1; i < n; i++)
+    //         {
+    //             if (formulaString[i] == '(')
+    //                 count++;
+    //             else if (formulaString[i] == ')')
+    //                 count--;
 
-            if (count == 0 && isBinaryOperator(formulaString[i]))
-            {
-                indexOfOperator = i;
-                break;
-            }
-        }
-        if (indexOfOperator != -1)
-        {
-            std::string leftStr = formulaString.substr(1, indexOfOperator - 1);
-            std::string rightStr = formulaString.substr(indexOfOperator + 1, n - indexOfOperator - 2);
-            Node *l = buildParseTree(leftStr);
-            Node *r = buildParseTree(rightStr);
+    //             if (count == 0 && isBinaryOperator(formulaString[i]))
+    //             {
+    //                 indexOfOperator = i;
+    //                 break;
+    //             }
+    //         }
+    //         if (indexOfOperator != -1)
+    //         {
+    //             std::string leftStr = formulaString.substr(1, indexOfOperator - 1);
+    //             std::string rightStr = formulaString.substr(indexOfOperator + 1, n - indexOfOperator - 2);
+    //             Node *l = buildParseTree(leftStr);
+    //             Node *r = buildParseTree(rightStr);
 
-            std::string op(1, formulaString[indexOfOperator]);
-            return new Node(op, l, r);
-        }
-    }
+    //             std::string op(1, formulaString[indexOfOperator]);
+    //             return new Node(op, l, r);
+    //         }
+    //     }
 
-    // Base case when the string is just a proposition
-    // Check if the given propositional variable already exists in prop and decide the id of the variable
-    int idx = -1;
+    //     // Base case when the string is just a proposition
+    //     // Check if the given propositional variable already exists in prop and decide the id of the variable
+    //     int idx = -1;
 
-    for (int i = 0; i < static_cast<int>(propIdMap.size()); i++)
-    {
-        if (propIdMap[i] == formulaString)
-        {
-            idx = i + 1;
-            break;
-        }
-    }
+    //     for (int i = 0; i < static_cast<int>(propIdMap.size()); i++)
+    //     {
+    //         if (propIdMap[i] == formulaString)
+    //         {
+    //             idx = i + 1;
+    //             break;
+    //         }
+    //     }
 
-    if (idx == -1)
-    {
-        propIdMap.push_back(formulaString);
-        idx = propIdMap.size();
-    }
+    //     if (idx == -1)
+    //     {
+    //         propIdMap.push_back(formulaString);
+    //         idx = propIdMap.size();
+    //     }
 
-    Node *retNode = new Node(formulaString);
+    //     Node *retNode = new Node(formulaString);
 
-    retNode->id = 2 * idx;
+    //     retNode->id = 2 * idx;
 
-    return retNode;
+    //     return retNode;
 }
 
 void Formula::printParseTree(Node *root)
