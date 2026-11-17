@@ -1,4 +1,11 @@
 #include "cdcl.h"
+
+struct Watcher
+{
+    int clause_index;
+    int blocker;
+};
+
 namespace CDCLnamespace
 {
     using Clause = std::vector<int>;
@@ -8,6 +15,7 @@ namespace CDCLnamespace
     using Reason = std::vector<int>;
     using Dstack = std::vector<int>;
     using Dstacklevel = std::vector<int>;
+    using Watches = std::vector<std::vector<Watcher>>;
 }
 
 using namespace CDCLnamespace;
@@ -25,6 +33,21 @@ struct Conflict
     int Id;
     int backtrackLevel;
 };
+
+static inline int litValue(const Model &model, int lit)
+{
+    const int v = model[lit >> 1];
+    return v == UNASSIGNED ? UNASSIGNED : (v ^ (lit & 1));
+}
+
+static inline void Assign(int lit, int dlevel, int clause_index, Model &model, Level &level, Reason &reason, Dstack &dstack)
+{
+    const int v = lit >> 1;
+    model[v] = (lit & 1) ^ 1;
+    level[v] = dlevel;
+    reason[v] = clause_index;
+    dstack.push_back(lit);
+}
 
 int cdclevaluateClause(const Clause &clause, const Model &model)
 {
@@ -68,59 +91,132 @@ bool isModelPartial(const std::unordered_map<int, int> &model)
     return false;
 }
 
+/** Does the Unit Propagations at decision level 0 and assigns them respectively and removes the unit clauses
+ * Sets up two watched literals as clause[0], clause[1] for every non-unit clause and tautologies
+ * Returns false if there is a conflict at level 0.
+ */
+bool InitializeWatches(Clauses &clauses, Model &model, Level &level, Reason &reason, Dstack &dstack, Watches &watches)
+{
+    size_t numClauses = 0;
+    for (size_t i = 0; i < clauses.size(); i++)
+    {
+        // Assumes the literals in c are sorted
+        Clause c = std::move(clauses[i]);
+        c.erase(std::unique(c.begin(), c.end()), c.end());
+
+        bool tautology = false;
+        for (size_t k = 0; k + 1< c.size(); k++)
+            if ((c[k] ^ 1) == c[k + 1])
+            {
+                tautology = true;
+                break;
+            }
+
+        if (tautology)
+            continue;
+        if (c.empty())
+            return false;
+        if (c.size() == 1)
+        {
+            const int val = litValue(model, c[0]);
+            if (val == FALSE)
+                return false;
+            if (val == UNASSIGNED)
+                Assign(c[0], 0, -1, model, level, reason, dstack);
+            continue;
+        }
+        clauses[numClauses] = std::move(c);
+        const Clause &cur = clauses[numClauses];
+        watches[cur[0]].push_back({static_cast<int>(numClauses), cur[1]});
+        watches[cur[1]].push_back({static_cast<int>(numClauses), cur[0]});
+        numClauses++;
+    }
+    clauses.resize(numClauses);
+    return true;
+}
+
 /* UnitPropagates a CNF and modifies the respective details and returns the index of the clause which is causing a conflict
  * Returns -1 if no conflict exists.
+ * dstack[head] are the assignments whose consequences have not been propagated yet.
+ * Every clause is watched by clause[0] and clause[1], If one watch is false, the other watch is true, or no unassigned
+ * replacement exists.
+ * Whenever a clause becomes the reason of a literal, then that literal sits at clause[0].
  */
-int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, Dstack &dstack, int dlevel)
+int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, Dstack &dstack, Watches &watches, size_t &head, int dlevel)
 {
-    bool propagate = true;
-    while (propagate)
+    while (head < dstack.size())
     {
-        propagate = false;
-        for (int clause_index = 0; clause_index < static_cast<int>(clauses.size()); clause_index++)
+        const int falseLit = dstack[head++] ^ 1;
+        std::vector<Watcher> &watch = watches[falseLit];
+        size_t n = watch.size();
+        size_t i = 0, j = 0;
+        while (i < n)
         {
-            const Clause &clause = clauses[clause_index];
-            int idTopropagate = 0;
-            int num_unassigned = 0;
-            bool sat = false;
-
-            for (const auto &varId : clause)
+            const Watcher w = watch[i++];
+            // The clause is sat hence do not check
+            if (litValue(model, w.blocker) == TRUE)
             {
-                if (model[varId >> 1] == UNASSIGNED)
+                watch[j] = w;
+                j++;
+                continue;
+            }
+
+            Clause &clause = clauses[w.clause_index];
+
+            // falseLit will be clause[1] if it were being watched already
+            if (clause[0] == falseLit)
+                std::swap(clause[0], clause[1]);
+
+            const int first = clause[0];
+
+            // If clause[0] isn't the watcher's blocker and also it evaluated to true then clause is sat and hence skip scanning
+            if (first != w.blocker && litValue(model, first) == TRUE)
+            {
+                watch[j++] = {w.clause_index, first};
+                continue;
+            }
+
+            // Search for a non-false literal in the clause to watch and swap with clause[1]
+            bool found = false;
+            for (size_t k = 2; k < clause.size(); k++)
+            {
+                if (litValue(model, clause[k]) != FALSE)
                 {
-                    num_unassigned++;
-                    idTopropagate = varId;
-                    continue;
-                }
-                if ((model[varId >> 1] ^ varId) & 1)
-                {
-                    sat = true;
+                    std::swap(clause[1], clause[k]);
+                    watches[clause[1]].push_back({w.clause_index, first});
+                    found = true;
                     break;
                 }
             }
-            if (sat)
-                continue;
-            // if every literal is assigned and the clause is not sat then it is causing a conflict.
-            if (num_unassigned == 0)
-                return clause_index;
-            if (num_unassigned == 1)
-            {
-                model[idTopropagate / 2] = (idTopropagate ^ 1) & 1;
-                level[idTopropagate / 2] = dlevel;
-                reason[idTopropagate / 2] = clause_index;
-                dstack.push_back(idTopropagate);
 
-                propagate = true;
+            if (found)
+                continue;
+
+            watch[j++] = {w.clause_index, first};
+
+            // Conflict found
+            if (litValue(model, first) == FALSE)
+            {
+                while (i < n)
+                    watch[j++] = watch[i++];
+                watch.resize(j);
+                head = dstack.size();
+                return w.clause_index;
             }
+            // If no conflict assign first to true
+            Assign(first, dlevel, w.clause_index, model, level, reason, dstack);
         }
+        watch.resize(j);
     }
     return -1;
 }
 
+/**
+ * First UIP conflict analysis
+ *
+ */
 Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &level, Reason &reason, Dstack &dstack, int dlevel)
 {
-    (void)clauses;
-    (void)reason;
     Conflict conflict_analysis;
     conflict_analysis.learntClause = std::vector<int>();
     conflict_analysis.backtrackLevel = dlevel;
@@ -174,7 +270,7 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
     return conflict_analysis;
 }
 
-void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason &reason, Dstack &dstack, Dstacklevel &dstacklevel)
+void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason &reason, Dstack &dstack, Dstacklevel &dstacklevel, size_t &head)
 {
     if (target_level >= dlevel)
         return;
@@ -191,6 +287,7 @@ void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason
     dstack.resize(cut);
     dstacklevel.resize(target_level);
     dlevel = target_level;
+    head = dstack.size();
 }
 
 int Decide(Model &model)
@@ -213,24 +310,33 @@ bool CDCLClauses(Clauses &clauses, int propNums)
     Dstack dstack;
     // dstack_level[i] returns an index in dstack from which the decision level i started
     Dstacklevel dstacklevel;
-
+    Watches watches(2 * (propNums + 1));
+    size_t head = 0;
     int dlevel = 0;
+
+    if (!InitializeWatches(clauses, model, level, reason, dstack, watches))
+        return false;
 
     while (true)
     {
-        int conflict = UnitPropagate(clauses, model, level, reason, dstack, dlevel);
+        int conflict = UnitPropagate(clauses, model, level, reason, dstack, watches, head, dlevel);
         if (conflict != -1)
         {
             if (dlevel == 0)
                 return false;
             Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, dlevel);
-            Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel);
-            clauses.push_back(std::move(conflictAnalysis.learntClause));
+            Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel, head);
             int Id = conflictAnalysis.Id;
-            model[Id >> 1] = (Id ^ 1) & 1;
-            level[Id >> 1] = dlevel;
-            reason[Id >> 1] = static_cast<int>(clauses.size()) - 1;
-            dstack.push_back(Id);
+            if (conflictAnalysis.learntClause.size() == 1)
+                Assign(Id, dlevel, -1, model, level, reason, dstack);
+            else
+            {
+                clauses.push_back(std::move(conflictAnalysis.learntClause));
+                const Clause &learnt = clauses[static_cast<int>(clauses.size()) - 1];
+                watches[learnt[0]].push_back({static_cast<int>(clauses.size()) - 1, learnt[1]});
+                watches[learnt[1]].push_back({static_cast<int>(clauses.size()) - 1, learnt[0]});
+                Assign(Id, dlevel, static_cast<int>(clauses.size()) - 1, model, level, reason, dstack);
+            }
             continue;
         }
 
@@ -242,9 +348,7 @@ bool CDCLClauses(Clauses &clauses, int propNums)
         model[decisionId] = TRUE;
         dlevel++;
         dstacklevel.push_back(dstack.size());
-        dstack.push_back(2 * decisionId);
-        reason[decisionId] = -1;
-        level[decisionId] = dlevel;
+        Assign(2 * decisionId, dlevel, -1, model, level, reason, dstack);
     }
 }
 
