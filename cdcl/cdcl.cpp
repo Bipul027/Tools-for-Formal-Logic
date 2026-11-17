@@ -325,6 +325,16 @@ bool CDCLClauses(Clauses &clauses, int propNums)
             if (dlevel == 0)
                 return false;
             Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, dlevel);
+            Clause &learntClause = conflictAnalysis.learntClause;
+            if (learntClause.size() > 1)
+            {
+                std::swap(learntClause[0], learntClause.back());
+                size_t best = 1;
+                for (size_t k = 2; k < learntClause.size(); k++)
+                    if (level[learntClause[k] >> 1] > level[learntClause[best] >> 1])
+                        best = k;
+                std::swap(learntClause[1], learntClause[best]);
+            }
             Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel, head);
             int Id = conflictAnalysis.Id;
             if (conflictAnalysis.learntClause.size() == 1)
