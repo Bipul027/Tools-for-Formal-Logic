@@ -1,22 +1,9 @@
-#include "cdcl.h"
+#include "vsids.h"
+#include <queue>
 
-struct Watcher
-{
-    int clause_index;
-    int blocker;
-};
 
-namespace CDCLnamespace
-{
-    using Clause = std::vector<int>;
-    using Clauses = std::vector<Clause>;
-    using Model = std::vector<int>;
-    using Level = std::vector<int>;
-    using Reason = std::vector<int>;
-    using Dstack = std::vector<int>;
-    using Dstacklevel = std::vector<int>;
-    using Watches = std::vector<std::vector<Watcher>>;
-}
+static int conflicts = 0;
+static int decisions = 0;
 
 using namespace CDCLnamespace;
 
@@ -215,7 +202,7 @@ int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, 
  * First UIP conflict analysis
  *
  */
-Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &level, Reason &reason, Dstack &dstack, int dlevel)
+Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &level, Reason &reason, Dstack &dstack, VSIDSHeap &vsids, int dlevel)
 {
     Conflict conflict_analysis;
     conflict_analysis.learntClause = std::vector<int>();
@@ -267,10 +254,14 @@ Conflict AnalyzeConflict(Clauses &clauses, Clause &clause, Model &model, Level &
     conflict_analysis.Id = p ^ 1;
     conflict_analysis.learntClause.push_back(p ^ 1);
     conflict_analysis.backtrackLevel = btLevel;
+    conflicts++;
+    for (int &lit : conflict_analysis.learntClause)
+        vsids.increaseScore(lit >> 1);
+    vsids.decayInc();
     return conflict_analysis;
 }
 
-void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason &reason, Dstack &dstack, Dstacklevel &dstacklevel, size_t &head)
+void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason &reason, Dstack &dstack, Dstacklevel &dstacklevel, VSIDSHeap &vsids, size_t &head)
 {
     if (target_level >= dlevel)
         return;
@@ -282,6 +273,7 @@ void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason
         model[v] = UNASSIGNED;
         level[v] = 0;
         reason[v] = -1;
+        vsids.insert(v);
     }
 
     dstack.resize(cut);
@@ -290,18 +282,25 @@ void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason
     head = dstack.size();
 }
 
-int Decide(Model &model)
+// Decides which proposition to make a decision and returns it based off the maximum score
+int Decide(const Model &model, VSIDSHeap &vsids)
 {
-    for (int i = 1; i < static_cast<int>(model.size()); i++)
+    while (!vsids.empty())
     {
-        if (model[i] == UNASSIGNED)
-            return i;
+        int lit = vsids.pop();
+        if (model[lit] == UNASSIGNED)
+        {
+            decisions++;
+            return lit;
+        }
     }
     return 0;
 }
 
-bool CDCLClauses(Clauses &clauses, int propNums)
+Result CDCLClauses(Clauses &clauses, int propNums)
 {
+    conflicts = 0;
+    decisions = 0;
     Model model(propNums + 1, UNASSIGNED);
     Level level(propNums + 1, 0);
     // index of the clause in clauses vector which is responsible for assigning a variable of id i;
@@ -314,8 +313,10 @@ bool CDCLClauses(Clauses &clauses, int propNums)
     size_t head = 0;
     int dlevel = 0;
 
+    VSIDSHeap vsids(propNums);
+
     if (!InitializeWatches(clauses, model, level, reason, dstack, watches))
-        return false;
+        return {false, model, conflicts, decisions};
 
     while (true)
     {
@@ -323,8 +324,8 @@ bool CDCLClauses(Clauses &clauses, int propNums)
         if (conflict != -1)
         {
             if (dlevel == 0)
-                return false;
-            Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, dlevel);
+                return {false, model, conflicts, decisions};
+            Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, vsids, dlevel);
             Clause &learntClause = conflictAnalysis.learntClause;
             if (learntClause.size() > 1)
             {
@@ -335,7 +336,7 @@ bool CDCLClauses(Clauses &clauses, int propNums)
                         best = k;
                 std::swap(learntClause[1], learntClause[best]);
             }
-            Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel, head);
+            Backtrack(conflictAnalysis.backtrackLevel, dlevel, model, level, reason, dstack, dstacklevel, vsids, head);
             int Id = conflictAnalysis.Id;
             if (conflictAnalysis.learntClause.size() == 1)
                 Assign(Id, dlevel, -1, model, level, reason, dstack);
@@ -350,25 +351,24 @@ bool CDCLClauses(Clauses &clauses, int propNums)
             continue;
         }
 
-        int decisionId = Decide(model);
+        int decisionId = Decide(model, vsids);
         if (decisionId == 0)
-            return true;
+            return {true, model, conflicts, decisions};
 
         // assign the decision ID to true
-        model[decisionId] = TRUE;
         dlevel++;
         dstacklevel.push_back(dstack.size());
         Assign(2 * decisionId, dlevel, -1, model, level, reason, dstack);
     }
 }
 
-bool CDCL(const Formula &formula)
+Result CDCL(const Formula &formula)
 {
     std::pair<CNF, std::vector<std::string>> TseitinEncoded = TseitinEncodedCNF(formula);
     return CDCLCNF(TseitinEncoded.first);
 }
 
-bool CDCLCNF(const CNF &F)
+Result CDCLCNF(const CNF &F)
 {
     const auto &set_clauses = F.getClauses();
     Clauses clauses;

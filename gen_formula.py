@@ -84,7 +84,7 @@ def main():
         for _ in range(max(1, round(args.ratio * args.vars))):
             vs = rng.sample(range(args.vars), 3)
             lits = [("~" if rng.random() < 0.5 else "") + atom(v) for v in vs]
-            clauses.append("(" + "|".join(lits) + ")")
+            clauses.append(f"(({lits[0]}|{lits[1]})|{lits[2]})")
         formula = combine(clauses, lambda: "&", args.shape, lambda s: s)
     else:
         if not args.formula_file:

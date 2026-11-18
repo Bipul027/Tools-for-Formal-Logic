@@ -81,35 +81,35 @@ int main()
     lap("copy of Formula");
 
     Node *treeNode = f.root;
-    if (!kQuiet)
-        f.printTree();
+    // if (!kQuiet)
+    //     f.printTree();
 
     assignment a;
     a.buildModel(treeNode);
     lap("assignment::buildModel");
     if (!kQuiet)
     {
-        std::cout << "===========Current Assignment=============" << "\n";
-        a.printModel();
-        std::cout << "=========Formula evaluation===========" << "\n";
+        // std::cout << "===========Current Assignment=============" << "\n";
+        // a.printModel();
+        // std::cout << "=========Formula evaluation===========" << "\n";
     }
 
-    auto evalResult = f.evaluateFormula(a, treeNode);
-    lap("evaluateFormula");
-    if (!kQuiet)
-    {
-        std::cout << "F: " << evalResult << std::endl;
-        std::cout << "String: " << treeToStr(treeNode) << std::endl;
-        std::cout << "===========Tseitin Encoding==========" << "\n";
-    }
-    (void)evalResult;
+    // auto evalResult = f.evaluateFormula(a, treeNode);
+    // lap("evaluateFormula");
+    // if (!kQuiet)
+    // {
+    //     std::cout << "F: " << evalResult << std::endl;
+    //     std::cout << "String: " << treeToStr(treeNode) << std::endl;
+    //     std::cout << "===========Tseitin Encoding==========" << "\n";
+    // }
+    // (void)evalResult;
 
     std::pair<CNF, std::vector<std::string>> Tseitin_encoding = TseitinEncodedCNF(f);
     lap("TseitinEncodedCNF");
-    if (!kQuiet)
-        Tseitin_encoding.first.print(Tseitin_encoding.second);
+    // if (!kQuiet)
+    //     Tseitin_encoding.first.print(Tseitin_encoding.second);
 
-    bool SAT = false;
+    Result SAT;
     double elapsed = 0;
     if (!skipped("cdcl"))
     {
@@ -119,45 +119,48 @@ int main()
         elapsed = std::chrono::duration<double>(end - start).count();
     }
     lap("CDCLCNF");
-    if (!kQuiet)
+    if (true)
     {
         std::cout << "===============CDCL============" << "\n";
-        std::cout << ((SAT) ? "SATISFIABLE" : "UNSAT") << "\n";
+        std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
+        std::cout << "Conflicts: " << SAT.conflicts << "\n";
+        std::cout << "Decisions: " << SAT.decisions << "\n";
+        std::cout << "Num Variables:" << SAT.model.size() - 1 << "\n";
     }
-    else
+    if(false)
     {
-        std::fprintf(stderr, "CDCL result: %s\n", skipped("cdcl") ? "skipped" : (SAT ? "SATISFIABLE" : "UNSAT"));
+        std::fprintf(stderr, "CDCL result: %s\n", skipped("cdcl") ? "skipped" : (SAT.sat ? "SATISFIABLE" : "UNSAT"));
     }
 
-#ifndef PROFILE_MODE
-    // Not part of the profiling build: UNI_ONLY / NNF / convertToCNF / isCNFValid
-    {
-        Node *UNI_NODE = UNI_ONLY(treeNode);
-        lap("UNI_ONLY");
-        if (!kQuiet)
-            std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
+// #ifndef PROFILE_MODE
+//     // Not part of the profiling build: UNI_ONLY / NNF / convertToCNF / isCNFValid
+//     {
+//         Node *UNI_NODE = UNI_ONLY(treeNode);
+//         lap("UNI_ONLY");
+//         if (!kQuiet)
+//             std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
 
-        Node *NNF_NODE = NNF(UNI_NODE);
-        lap("NNF");
-        if (!kQuiet)
-        {
-            std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
-            std::cout << "CNF String: ";
-        }
+//         Node *NNF_NODE = NNF(UNI_NODE);
+//         lap("NNF");
+//         if (!kQuiet)
+//         {
+//             std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
+//             std::cout << "CNF String: ";
+//         }
 
-        CNF Formula_in_CNF = convertToCNF(NNF_NODE);
-        lap("convertToCNF");
-        if (!kQuiet)
-            Formula_in_CNF.print(f.propIdMap);
+//         CNF Formula_in_CNF = convertToCNF(NNF_NODE);
+//         lap("convertToCNF");
+//         if (!kQuiet)
+//             Formula_in_CNF.print(f.propIdMap);
 
-        auto validity = isCNFValid(Formula_in_CNF);
-        lap("isCNFValid");
-        if (!kQuiet)
-            std::cout << "Validity: " << validity << "\n";
-        else
-            (void)validity;
-    }
-#endif
+//         auto validity = isCNFValid(Formula_in_CNF);
+//         lap("isCNFValid");
+//         if (!kQuiet)
+//             std::cout << "Validity: " << validity << "\n";
+//         else
+//             (void)validity;
+//     }
+// #endif
 
     if (!kQuiet)
         std::cout << "CDCL Execution Time: " << elapsed << " seconds\n";
