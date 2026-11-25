@@ -1,22 +1,13 @@
-#include "evaluator/evaluator.h"
-#include "cnf/converting_functions.h"
-#include "validity/validity.h"
-#include "tseiten/tseitin.h"
-#include "dpll/dpll.h"
+#include "cnf/cnf.h"
 #include "cdcl/cdcl.h"
-#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 
-// Normal build: behaves like your original main.
-// Profiling build (-DPROFILE_MODE): no printing and no print-only work (treeToStr, printTree, ...),
-// and a per-stage timing table is written to stderr.
-// The UNI_ONLY / NNF / convertToCNF / isCNFValid block is compiled out of the profiling build.
-//   SKIP=cdcl        skip the CDCL solver at runtime
 #ifdef PROFILE_MODE
 static constexpr bool kQuiet = true;
 #else
@@ -33,7 +24,6 @@ struct StageTime
 static std::vector<StageTime> g_stages;
 static Clock::time_point g_last = Clock::now();
 
-// Records the time since the previous lap() under `name`.
 static void lap(const char *name)
 {
     auto now = Clock::now();
@@ -62,106 +52,108 @@ static void printStages()
     std::fprintf(stderr, "-----------------------------------------\n");
 }
 
+static CNF parseDimacsCNF(const std::string &s)
+{
+    CNF cnf;
+    std::set<int> clause;
+    size_t i = 0;
+    const size_t n = s.size();
+
+    while (i < n)
+    {
+        while (i < n && (s[i] == ' ' || s[i] == ',' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n'))
+            i++;
+
+        if (i >= n)
+            break;
+
+        if (s[i] == ';')
+        {
+            if (!clause.empty())
+            {
+                cnf.addClause(std::move(clause));
+                clause.clear();
+            }
+            i++;
+            continue;
+        }
+
+        bool neg = false;
+        if (s[i] == '-')
+        {
+            neg = true;
+            i++;
+        }
+        else if (s[i] == '+')
+        {
+            i++;
+        }
+
+        int var = 0;
+        bool hasDigits = false;
+        while (i < n && s[i] >= '0' && s[i] <= '9')
+        {
+            var = var * 10 + (s[i] - '0');
+            hasDigits = true;
+            i++;
+        }
+
+        if (!hasDigits)
+        {
+            i++;
+            continue;
+        }
+
+        if (var > 0)
+        {
+            int lit = neg ? (2 * var + 1) : (2 * var);
+            clause.insert(lit);
+        }
+    }
+
+    if (!clause.empty())
+        cnf.addClause(std::move(clause));
+
+    return cnf;
+}
+
 int main()
 {
-    // Unsynchronised iostreams: getline on a huge line no longer goes through stdio getc() per character.
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
     std::string s;
     std::getline(std::cin, s);
-    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
     lap("read input");
 
-    Formula f = Formula(s);
-    lap("parse (Formula ctor)");
-
-    Formula copy = f;
-    (void)copy;
-    lap("copy of Formula");
-
-    Node *treeNode = f.root;
-    // if (!kQuiet)
-    //     f.printTree();
-
-    assignment a;
-    a.buildModel(treeNode);
-    lap("assignment::buildModel");
-    if (!kQuiet)
-    {
-        // std::cout << "===========Current Assignment=============" << "\n";
-        // a.printModel();
-        // std::cout << "=========Formula evaluation===========" << "\n";
-    }
-
-    // auto evalResult = f.evaluateFormula(a, treeNode);
-    // lap("evaluateFormula");
-    // if (!kQuiet)
-    // {
-    //     std::cout << "F: " << evalResult << std::endl;
-    //     std::cout << "String: " << treeToStr(treeNode) << std::endl;
-    //     std::cout << "===========Tseitin Encoding==========" << "\n";
-    // }
-    // (void)evalResult;
-
-    std::pair<CNF, std::vector<std::string>> Tseitin_encoding = TseitinEncodedCNF(f);
-    lap("TseitinEncodedCNF");
-    // if (!kQuiet)
-    //     Tseitin_encoding.first.print(Tseitin_encoding.second);
+    CNF cnf = parseDimacsCNF(s);
+    lap("parseDimacsCNF");
 
     Result SAT;
     double elapsed = 0;
     if (!skipped("cdcl"))
     {
         auto start = Clock::now();
-        SAT = CDCLCNF(Tseitin_encoding.first);
+        SAT = CDCLCNF(cnf);
         auto end = Clock::now();
         elapsed = std::chrono::duration<double>(end - start).count();
     }
     lap("CDCLCNF");
-    if (true)
-    {
-        std::cout << "===============CDCL============" << "\n";
-        std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
-        std::cout << "Conflicts: " << SAT.conflicts << "\n";
-        std::cout << "Decisions: " << SAT.decisions << "\n";
-        std::cout << "Num Variables:" << SAT.model.size() - 1 << "\n";
-    }
-    if(false)
-    {
-        std::fprintf(stderr, "CDCL result: %s\n", skipped("cdcl") ? "skipped" : (SAT.sat ? "SATISFIABLE" : "UNSAT"));
-    }
+    auto start = Clock::now();
+    Result NumSat = CountCNF(cnf);
+    auto end = Clock::now();
+    elapsed = std::chrono::duration<double>(end - start).count();
+    lap("MODELCOUNTING");
 
-// #ifndef PROFILE_MODE
-//     // Not part of the profiling build: UNI_ONLY / NNF / convertToCNF / isCNFValid
-//     {
-//         Node *UNI_NODE = UNI_ONLY(treeNode);
-//         lap("UNI_ONLY");
-//         if (!kQuiet)
-//             std::cout << "Universal String: " << treeToStr(UNI_NODE) << std::endl;
+    std::cout << "===============CDCL============" << "\n";
+    std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
+    std::cout << "Conflicts: " << SAT.conflicts << "\n";
+    std::cout << "Decisions: " << SAT.decisions << "\n";
+    std::cout << "Num Variables: " << (SAT.model.empty() ? 0 : SAT.model.size() - 1) << "\n";
 
-//         Node *NNF_NODE = NNF(UNI_NODE);
-//         lap("NNF");
-//         if (!kQuiet)
-//         {
-//             std::cout << "NNF String: " << treeToStr(NNF_NODE) << std::endl;
-//             std::cout << "CNF String: ";
-//         }
-
-//         CNF Formula_in_CNF = convertToCNF(NNF_NODE);
-//         lap("convertToCNF");
-//         if (!kQuiet)
-//             Formula_in_CNF.print(f.propIdMap);
-
-//         auto validity = isCNFValid(Formula_in_CNF);
-//         lap("isCNFValid");
-//         if (!kQuiet)
-//             std::cout << "Validity: " << validity << "\n";
-//         else
-//             (void)validity;
-//     }
-// #endif
-
+    std::cout << "===============MODEL COUNTING============" << "\n";
+    std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
+    std::cout << "SAT assignments: " << NumSat.satAssignments << "\n";
     if (!kQuiet)
         std::cout << "CDCL Execution Time: " << elapsed << " seconds\n";
     else

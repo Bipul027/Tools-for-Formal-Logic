@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-"""Generate large propositional formulas (one line, fully parenthesised) for profiling.
-
-Operators emitted: & | > ^ ~   (the ones your Tseitin code handles)
+"""Generate large propositional formulas or DIMACS-style CNFs for profiling.
 
 Modes
   random  N binary operators over V atoms
-  sat3    random 3-SAT: V variables, round(RATIO*V) clauses joined by &  (stresses CDCL)
-  repeat  take an existing formula file and join N copies of it (syntax-agnostic scale-up)
+  sat3    random 3-SAT as a parenthesised formula
+  dimacs  random k-SAT in "x1, -x2, x3; ..." integer format (skips Tseitin)
+  repeat  take an existing formula file and join N copies of it
 
 Examples
-  python3 gen_formula.py random --n 5000 --vars 40 > big.txt
-  python3 gen_formula.py random --n 5000 --vars 40 --shape skewed > deep.txt
+  python3 gen_formula.py dimacs --vars 150 --ratio 4.26 > input.txt
   python3 gen_formula.py sat3 --vars 80 > sat.txt
-  python3 gen_formula.py repeat --n 2000 --formula-file small.txt > big.txt
-
-If your parser rejects the atom names, change --atom-fmt (e.g. "p{}") or use
---atom-fmt letters (a..z, reused cyclically).
+  python3 gen_formula.py random --n 5000 --vars 40 > big.txt
 """
 import argparse
 import random
@@ -48,10 +43,11 @@ def combine(items, op_fn, shape, wrap):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["random", "sat3", "repeat"])
+    ap.add_argument("mode", choices=["random", "sat3", "dimacs", "repeat"])
     ap.add_argument("--n", type=int, default=1000, help="random: #binary operators; repeat: #copies")
     ap.add_argument("--vars", type=int, default=30, help="number of distinct atoms")
-    ap.add_argument("--ratio", type=float, default=4.26, help="sat3: clauses per variable")
+    ap.add_argument("--ratio", type=float, default=4.26, help="sat3/dimacs: clauses per variable")
+    ap.add_argument("--k", type=int, default=3, help="dimacs: literals per clause (default: 3)")
     ap.add_argument("--shape", choices=["balanced", "skewed"], default="balanced",
                     help="balanced = depth ~log n; skewed = depth ~n (deep recursion)")
     ap.add_argument("--ops", default="&|>^", help="random: binary operators to draw from")
@@ -86,6 +82,15 @@ def main():
             lits = [("~" if rng.random() < 0.5 else "") + atom(v) for v in vs]
             clauses.append(f"(({lits[0]}|{lits[1]})|{lits[2]})")
         formula = combine(clauses, lambda: "&", args.shape, lambda s: s)
+    elif args.mode == "dimacs":
+        if args.vars < args.k:
+            sys.exit(f"dimacs needs --vars >= {args.k}")
+        clauses = []
+        for _ in range(max(1, round(args.ratio * args.vars))):
+            vs = rng.sample(range(1, args.vars + 1), args.k)
+            lits = [str(-v if rng.random() < 0.5 else v) for v in vs]
+            clauses.append(", ".join(lits))
+        formula = "; ".join(clauses) + ";"
     else:
         if not args.formula_file:
             sys.exit("repeat needs --formula-file")

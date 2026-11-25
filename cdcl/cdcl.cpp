@@ -1,9 +1,11 @@
 #include "vsids.h"
 #include <queue>
 
-
 static int conflicts = 0;
 static int decisions = 0;
+static cpp_int satAssignments = 0;
+static int freeVariables = 0;
+static std::vector<int8_t> phase;
 
 using namespace CDCLnamespace;
 
@@ -270,6 +272,7 @@ void Backtrack(int target_level, int &dlevel, Model &model, Level &level, Reason
     {
         int v = dstack[i] / 2;
 
+        phase[v] = model[v];
         model[v] = UNASSIGNED;
         level[v] = 0;
         reason[v] = -1;
@@ -301,6 +304,9 @@ Result CDCLClauses(Clauses &clauses, int propNums)
 {
     conflicts = 0;
     decisions = 0;
+    // satAssignments = 0;
+    // freeVariables = propNums;
+
     Model model(propNums + 1, UNASSIGNED);
     Level level(propNums + 1, 0);
     // index of the clause in clauses vector which is responsible for assigning a variable of id i;
@@ -314,9 +320,10 @@ Result CDCLClauses(Clauses &clauses, int propNums)
     int dlevel = 0;
 
     VSIDSHeap vsids(propNums);
+    phase.assign(propNums + 1, TRUE);
 
     if (!InitializeWatches(clauses, model, level, reason, dstack, watches))
-        return {false, model, conflicts, decisions};
+        return {false, model, conflicts, decisions, 0};
 
     while (true)
     {
@@ -324,7 +331,7 @@ Result CDCLClauses(Clauses &clauses, int propNums)
         if (conflict != -1)
         {
             if (dlevel == 0)
-                return {false, model, conflicts, decisions};
+                return {false, model, conflicts, decisions, satAssignments};
             Conflict conflictAnalysis = AnalyzeConflict(clauses, clauses[conflict], model, level, reason, dstack, vsids, dlevel);
             Clause &learntClause = conflictAnalysis.learntClause;
             if (learntClause.size() > 1)
@@ -353,13 +360,97 @@ Result CDCLClauses(Clauses &clauses, int propNums)
 
         int decisionId = Decide(model, vsids);
         if (decisionId == 0)
-            return {true, model, conflicts, decisions};
+            return {true, model, conflicts, decisions, 0};
 
-        // assign the decision ID to true
+        dlevel++;
+        dstacklevel.push_back(dstack.size());
+        Assign((2 * decisionId) ^ (phase[decisionId] ^ 1), dlevel, -1, model, level, reason, dstack);
+    }
+}
+
+Result CountClauses(Clauses &clauses, int propNums)
+{
+    conflicts = 0;
+    decisions = 0;
+    satAssignments = 0;
+    freeVariables = propNums;
+
+    Model model(propNums + 1, UNASSIGNED);
+    Level level(propNums + 1, 0);
+    Reason reason(propNums + 1, -1);
+    Dstack dstack;
+    Dstacklevel dstacklevel;
+    Watches watches(2 * (propNums + 1));
+    size_t head = 0;
+    int dlevel = 0;
+    VSIDSHeap vsids(propNums);
+    phase.assign(propNums + 1, TRUE);
+
+    if (!InitializeWatches(clauses, model, level, reason, dstack, watches))
+        return {false, model, conflicts, decisions, 0};
+
+    // go back to the last unflipped decision level, flip it update dstacklevel, dstack, dlevel
+    auto backtrack = [&] -> bool
+    {
+        while (dlevel > 0)
+        {
+            size_t start = dstacklevel[dlevel - 1];
+            int lit = dstack[start];
+            // If set to false then it is flipped
+            if (lit & 1)
+            {
+                while (dstack.size() > start)
+                {
+                    model[dstack.back() / 2] = UNASSIGNED;
+                    vsids.insert(dstack.back() / 2);
+                    dstack.pop_back();
+                }
+                dstacklevel.pop_back();
+                dlevel--;
+                continue;
+            }
+            while (dstack.size() > start)
+            {
+                model[dstack.back() / 2] = UNASSIGNED;
+                vsids.insert(dstack.back() / 2);
+                dstack.pop_back();
+            }
+            dstack.push_back(lit | 1);
+            head = start;
+            model[lit / 2] = FALSE;
+            return true;
+        }
+        return false;
+    };
+
+    while (true)
+    {
+        int conflict = UnitPropagate(clauses, model, level, reason, dstack, watches, head, dlevel);
+        if (conflict != -1)
+        {
+            if (!backtrack())
+                break;
+            continue;
+        }
+
+        int decisionId = 0;
+        if (evaluateCNF(clauses, model) == UNASSIGNED)
+            decisionId = Decide(model, vsids);
+
+        if (decisionId == 0)
+        {
+            freeVariables = propNums - static_cast<int>(dstack.size());
+            satAssignments += cpp_int(1) << freeVariables;
+            if (!backtrack())
+                break;
+            continue;
+        }
+        // Assign true to the variable
         dlevel++;
         dstacklevel.push_back(dstack.size());
         Assign(2 * decisionId, dlevel, -1, model, level, reason, dstack);
     }
+    return {satAssignments > 0, model, conflicts, decisions, satAssignments};
 }
 
 Result CDCL(const Formula &formula)
@@ -376,4 +467,20 @@ Result CDCLCNF(const CNF &F)
     for (const auto &s : set_clauses)
         clauses.emplace_back(s.begin(), s.end());
     return CDCLClauses(clauses, F.propNums());
+}
+
+Result Count(const Formula &formula)
+{
+    std::pair<CNF, std::vector<std::string>> TseitinEncoded = TseitinEncodedCNF(formula);
+    return CountCNF(TseitinEncoded.first);
+}
+
+Result CountCNF(const CNF &F)
+{
+    const auto &set_clauses = F.getClauses();
+    Clauses clauses;
+    clauses.reserve(set_clauses.size());
+    for (const auto &s : set_clauses)
+        clauses.emplace_back(s.begin(), s.end());
+    return CountClauses(clauses, F.propNums());
 }

@@ -1,6 +1,6 @@
 
 CXX = g++
-CXXFLAGS = -Wall -O3 -Wextra -g -std=c++17 -I./wff -I./evaluator
+CXXFLAGS = -Wall -O3 -Wextra -g -std=c++23 -I./wff -I./evaluator
 
 TARGET = program
 

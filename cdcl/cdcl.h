@@ -1,5 +1,8 @@
 #include "../wff/validator.h"
 #include "../tseiten/tseitin.h"
+#include <boost/multiprecision/cpp_int.hpp>
+
+using boost::multiprecision::cpp_int;
 
 struct Result
 {
@@ -7,6 +10,7 @@ struct Result
     std::vector<int> model;
     int conflicts;
     int decisions;
+    cpp_int satAssignments;
 };
 
 struct Watcher
@@ -17,3 +21,5 @@ struct Watcher
 
 Result CDCL(const Formula &formula);
 Result CDCLCNF(const CNF &F);
+Result Count(const Formula &formula);
+Result CountCNF(const CNF &F);

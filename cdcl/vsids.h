@@ -1,17 +1,5 @@
 #include "cdcl.h"
 
-struct Score
-{
-    float score;
-    int propId;
-    bool operator<(const Score &other) const
-    {
-        if (score != other.score)
-            return score < other.score;
-        return propId > other.propId;
-    }
-};
-
 namespace CDCLnamespace
 {
     using Clause = std::vector<int>;
