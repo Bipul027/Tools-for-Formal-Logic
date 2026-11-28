@@ -17,23 +17,12 @@ enum Assignment
     TRUE = 1
 };
 
-static inline int litValue(const Model &model, int lit)
-{
-    const int v = model[lit >> 1];
-    return v == UNASSIGNED ? UNASSIGNED : (v ^ (lit & 1));
-}
-
 static inline void Assign(int lit, Dstack &dstack, int8_t *val)
 {
     val[lit] = TRUE;
     val[lit ^ 1] = FALSE;
     dstack.push_back(lit);
 }
-
-// static inline void AssignNew(int lit, Model &model, Dstack &dstack, int &satisfiedClauses)
-// {
-//     Assign(lit, model, dstack);
-// }
 
 bool InitializeWatches(Clauses &clauses, Dstack &dstack, Watches &watches, int8_t *val)
 {
