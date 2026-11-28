@@ -7,7 +7,8 @@ static int freeVariables = 0;
 static std::vector<int8_t> phase;
 
 using namespace CDCLnamespace;
-using Occurrences = std::vector<std::vector<int>>;
+// The list of clauses each literal is present in.
+// using Occurrences = std::vector<std::vector<int>>;
 
 enum Assignment
 {
@@ -16,42 +17,25 @@ enum Assignment
     TRUE = 1
 };
 
-static inline void UpdateSatisfaction(int lit, int change, const Occurrences &occurrences, std::vector<int> &trueCount, int &satisfiedClauses)
-{
-    for (const int &clause_index : occurrences[lit])
-    {
-        int before = trueCount[clause_index];
-        trueCount[clause_index] += change;
-
-        if (before == 0 && trueCount[clause_index] > 0)
-            satisfiedClauses++;
-        else if (before > 0 && trueCount[clause_index] == 0)
-            satisfiedClauses--;
-    }
-}
-
 static inline int litValue(const Model &model, int lit)
 {
     const int v = model[lit >> 1];
     return v == UNASSIGNED ? UNASSIGNED : (v ^ (lit & 1));
 }
 
-static inline void Assign(int lit, int dlevel, int clause_index, Model &model, Level &level, Reason &reason, Dstack &dstack)
+static inline void Assign(int lit, Dstack &dstack, int8_t *val)
 {
-    const int v = lit >> 1;
-    model[v] = (lit & 1) ^ 1;
-    level[v] = dlevel;
-    reason[v] = clause_index;
+    val[lit] = TRUE;
+    val[lit ^ 1] = FALSE;
     dstack.push_back(lit);
 }
 
-static inline void AssignNew(int lit, int dlevel, int clause_index, Model &model, Level &level, Reason &reason, Dstack &dstack, const Occurrences &occurrences, std::vector<int> &propCount, int &satisfiedClauses)
-{
-    Assign(lit, dlevel, clause_index, model, level, reason, dstack);
-    UpdateSatisfaction(lit, 1, occurrences, propCount, satisfiedClauses);
-}
+// static inline void AssignNew(int lit, Model &model, Dstack &dstack, int &satisfiedClauses)
+// {
+//     Assign(lit, model, dstack);
+// }
 
-bool InitializeWatches(Clauses &clauses, Model &model, Level &level, Reason &reason, Dstack &dstack, Watches &watches)
+bool InitializeWatches(Clauses &clauses, Dstack &dstack, Watches &watches, int8_t *val)
 {
     size_t numClauses = 0;
     for (size_t i = 0; i < clauses.size(); i++)
@@ -73,11 +57,11 @@ bool InitializeWatches(Clauses &clauses, Model &model, Level &level, Reason &rea
             return false;
         if (c.size() == 1)
         {
-            const int val = litValue(model, c[0]);
-            if (val == FALSE)
+            const int8_t value = val[c[0]];
+            if (value == FALSE)
                 return false;
-            if (val == UNASSIGNED)
-                Assign(c[0], 0, -1, model, level, reason, dstack);
+            if (value == UNASSIGNED)
+                Assign(c[0], dstack, val);
             continue;
         }
         clauses[numClauses] = std::move(c);
@@ -90,7 +74,7 @@ bool InitializeWatches(Clauses &clauses, Model &model, Level &level, Reason &rea
     return true;
 }
 
-static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &reason, Dstack &dstack, Watches &watches, size_t &head, int dlevel, const Occurrences &occurrences, std::vector<int> &propCount, int &satisfiedClauses)
+static int UnitPropagate(Clauses &clauses, Dstack &dstack, Watches &watches, size_t &head, int8_t *val)
 {
     while (head < dstack.size())
     {
@@ -102,7 +86,7 @@ static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &r
         {
             const Watcher w = watch[i++];
             // The clause is sat hence do not check
-            if (litValue(model, w.blocker) == TRUE)
+            if (val[w.blocker] == TRUE)
             {
                 watch[j] = w;
                 j++;
@@ -118,7 +102,7 @@ static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &r
             const int first = clause[0];
 
             // If clause[0] isn't the watcher's blocker and also it evaluated to true then clause is sat and hence skip scanning
-            if (first != w.blocker && litValue(model, first) == TRUE)
+            if (first != w.blocker && val[first] == TRUE)
             {
                 watch[j++] = {w.clause_index, first};
                 continue;
@@ -128,7 +112,7 @@ static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &r
             bool found = false;
             for (size_t k = 2; k < clause.size(); k++)
             {
-                if (litValue(model, clause[k]) != FALSE)
+                if (val[clause[k]] != FALSE)
                 {
                     std::swap(clause[1], clause[k]);
                     watches[clause[1]].push_back({w.clause_index, first});
@@ -143,7 +127,7 @@ static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &r
             watch[j++] = {w.clause_index, first};
 
             // Conflict found
-            if (litValue(model, first) == FALSE)
+            if (val[first] == FALSE)
             {
                 while (i < n)
                     watch[j++] = watch[i++];
@@ -152,24 +136,18 @@ static int UnitPropagate(Clauses &clauses, Model &model, Level &level, Reason &r
                 return w.clause_index;
             }
             // If no conflict assign first to true
-            AssignNew(first, dlevel, w.clause_index, model, level, reason, dstack, occurrences, propCount, satisfiedClauses);
+            Assign(first, dstack, val);
         }
         watch.resize(j);
     }
     return -1;
 }
 
-static int Decide(const Model &model, VSIDSHeap &vsids)
+static int Decide(const int8_t *val, const Clause &clause)
 {
-    while (!vsids.empty())
-    {
-        int lit = vsids.pop();
-        if (model[lit] == UNASSIGNED)
-        {
-            decisions++;
-            return lit;
-        }
-    }
+    for (const int &lit : clause)
+        if (val[lit] == UNASSIGNED)
+            return lit >> 1;
     return 0;
 }
 
@@ -179,72 +157,53 @@ Result CountClauses(Clauses &clauses, int propNums)
     decisions = 0;
     satAssignments = 0;
     freeVariables = propNums;
-
     Model model(propNums + 1, UNASSIGNED);
-    Level level(propNums + 1, 0);
-    Reason reason(propNums + 1, -1);
     Dstack dstack;
     Dstacklevel dstacklevel;
+    size_t unsat_head = 0;
+    std::vector<size_t> head_stack;
+    head_stack.reserve(propNums + 1);
     Watches watches(2 * (propNums + 1));
     size_t head = 0;
     int dlevel = 0;
-    VSIDSHeap vsids(propNums);
     phase.assign(propNums + 1, TRUE);
+    std::vector<int8_t> values(2 * (propNums + 1), UNASSIGNED);
+    int8_t *const val = values.data();
 
-    if (!InitializeWatches(clauses, model, level, reason, dstack, watches))
+    if (!InitializeWatches(clauses, dstack, watches, val))
         return {false, model, conflicts, decisions, 0};
-
-    int numClauses = clauses.size();
-    int satisfiedClauses = 0;
-    Occurrences occurrences(2 * (propNums + 1));
-    std::vector<int> propCount(numClauses, 0);
-
-    for (int clause_index = 0; clause_index < (int)clauses.size(); clause_index++)
-    {
-        for (int lit : clauses[clause_index])
-        {
-            occurrences[lit].push_back(clause_index);
-
-            if (litValue(model, lit) == TRUE)
-                propCount[clause_index]++;
-        }
-
-        if (propCount[clause_index] > 0)
-            satisfiedClauses++;
-    }
-
     // go back to the last unflipped decision level, flip it update dstacklevel, dstack, dlevel
+    int numClauses = clauses.size();
     auto backtrack = [&]() -> bool
     {
         while (dlevel > 0)
         {
             size_t start = dstacklevel[dlevel - 1];
             int lit = dstack[start];
-            // If set to false then it is flipped
             if (lit & 1)
             {
                 while (dstack.size() > start)
                 {
-                    const int assignedLit = dstack.back();
-                    UpdateSatisfaction(assignedLit, -1, occurrences, propCount, satisfiedClauses);
-                    model[dstack.back() / 2] = UNASSIGNED;
-                    vsids.insert(dstack.back() / 2);
+                    int l = dstack.back();
+                    val[l] = UNASSIGNED;
+                    val[l ^ 1] = UNASSIGNED;
                     dstack.pop_back();
                 }
                 dstacklevel.pop_back();
+                head_stack.pop_back();
                 dlevel--;
                 continue;
             }
             while (dstack.size() > start)
             {
-                const int assignedLit = dstack.back();
-                UpdateSatisfaction(assignedLit, -1, occurrences, propCount, satisfiedClauses);
-                model[dstack.back() / 2] = UNASSIGNED;
-                vsids.insert(dstack.back() / 2);
+                int l = dstack.back();
+                val[l] = UNASSIGNED;
+                val[l ^ 1] = UNASSIGNED;
                 dstack.pop_back();
             }
+            unsat_head = head_stack.back();
             head = start;
-            AssignNew(lit | 1, dlevel, -1, model, level, reason, dstack, occurrences, propCount, satisfiedClauses);
+            Assign(lit | 1, dstack, val);
             return true;
         }
         return false;
@@ -252,17 +211,32 @@ Result CountClauses(Clauses &clauses, int propNums)
 
     while (true)
     {
-        int conflict = UnitPropagate(clauses, model, level, reason, dstack, watches, head, dlevel, occurrences, propCount, satisfiedClauses);
+        int conflict = UnitPropagate(clauses, dstack, watches, head, val);
         if (conflict != -1)
         {
             if (!backtrack())
                 break;
             continue;
         }
+        while (unsat_head < numClauses)
+        {
+            uint8_t clause_sat = false;
+            for (const int &lit : clauses[unsat_head])
+            {
+                if (val[lit] == TRUE)
+                {
+                    clause_sat = true;
+                    unsat_head++;
+                    break;
+                }
+            }
+            if (!clause_sat)
+                break;
+        }
 
         int decisionId = 0;
-        if (satisfiedClauses != (int)clauses.size())
-            decisionId = Decide(model, vsids);
+        if (unsat_head != clauses.size())
+            decisionId = Decide(val, clauses[unsat_head]);
 
         if (decisionId == 0)
         {
@@ -275,7 +249,8 @@ Result CountClauses(Clauses &clauses, int propNums)
         // Assign true to the variable
         dlevel++;
         dstacklevel.push_back(dstack.size());
-        AssignNew(2 * decisionId, dlevel, -1, model, level, reason, dstack, occurrences, propCount, satisfiedClauses);
+        head_stack.push_back(unsat_head);
+        Assign(2 * decisionId, dstack, val);
     }
     return {satAssignments > 0, model, conflicts, decisions, satAssignments};
 }

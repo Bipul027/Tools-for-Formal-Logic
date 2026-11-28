@@ -129,34 +129,35 @@ int main()
     CNF cnf = parseDimacsCNF(s);
     lap("parseDimacsCNF");
 
-    Result SAT;
-    double elapsed = 0;
-    if (!skipped("cdcl"))
-    {
-        auto start = Clock::now();
-        SAT = CDCLCNF(cnf);
-        auto end = Clock::now();
-        elapsed = std::chrono::duration<double>(end - start).count();
-    }
-    lap("CDCLCNF");
+    // Result SAT;
+    double elapsed_counting = 0;
+    // if (!skipped("cdcl"))
+    // {
+    //     auto start = Clock::now();
+    //     SAT = CDCLCNF(cnf);
+    //     auto end = Clock::now();
+    //     elapsed = std::chrono::duration<double>(end - start).count();
+    // }
+    // lap("CDCLCNF");
     auto start = Clock::now();
     Result NumSat = CountCNF(cnf);
     auto end = Clock::now();
-    elapsed = std::chrono::duration<double>(end - start).count();
-    lap("MODELCOUNTING");
+    elapsed_counting = std::chrono::duration<double>(end - start).count();
+    lap("MODEL_COUNTING");
 
-    std::cout << "===============CDCL============" << "\n";
-    std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
-    std::cout << "Conflicts: " << SAT.conflicts << "\n";
-    std::cout << "Decisions: " << SAT.decisions << "\n";
-    std::cout << "Num Variables: " << (SAT.model.empty() ? 0 : SAT.model.size() - 1) << "\n";
+    // std::cout << "===============CDCL============" << "\n";
+    // std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
+    // std::cout << "Conflicts: " << SAT.conflicts << "\n";
+    // std::cout << "Decisions: " << SAT.decisions << "\n";
+    // std::cout << "Num Variables: " << (SAT.model.empty() ? 0 : SAT.model.size() - 1) << "\n";
 
     std::cout << "===============MODEL COUNTING============" << "\n";
-    std::cout << ((SAT.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
+    std::cout << ((NumSat.sat) ? "SATISFIABLE" : "UNSAT") << "\n";
     std::cout << "SAT assignments: " << NumSat.satAssignments << "\n";
-    if (!kQuiet)
-        std::cout << "CDCL Execution Time: " << elapsed << " seconds\n";
-    else
-        printStages();
+    std::cout << "Model Counting Time: " << elapsed_counting << " seconds\n";
+    // if (!kQuiet)
+    //     std::cout << "CDCL Execution Time: " << elapsed << " seconds\n";
+    // else
+    printStages();
     return 0;
 }
